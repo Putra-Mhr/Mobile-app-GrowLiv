@@ -8,11 +8,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useNotification } from "@/context/NotificationContext";
 
 function OrdersScreen() {
   const { data: orders, isLoading, isError } = useOrders();
   const { createReviewAsync, isCreatingReview } = useReviews();
+  const { showToast } = useNotification();
 
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -37,7 +39,7 @@ function OrdersScreen() {
     // check if all products have been rated
     const allRated = Object.values(productRatings).every((rating) => rating > 0);
     if (!allRated) {
-      Alert.alert("Error", "Please rate all products");
+      showToast('warning', 'Incomplete Rating', 'Please rate all products before submitting');
       return;
     }
 
@@ -52,12 +54,12 @@ function OrdersScreen() {
         })
       );
 
-      Alert.alert("Success", "Thank you for rating all products!");
+      showToast('success', 'Thank You! ⭐', 'Your ratings have been submitted successfully');
       setShowRatingModal(false);
       setSelectedOrder(null);
       setProductRatings({});
     } catch (error: any) {
-      Alert.alert("Error", error?.response?.data?.error || "Failed to submit rating");
+      showToast('error', 'Rating Failed', error?.response?.data?.error || 'Failed to submit rating');
     }
   };
 

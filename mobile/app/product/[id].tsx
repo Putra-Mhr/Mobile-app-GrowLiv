@@ -6,15 +6,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   View,
   Text,
-  Alert,
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   Dimensions,
 } from "react-native";
+import { useNotification } from "@/context/NotificationContext";
 
 const { width } = Dimensions.get("window");
 
@@ -22,6 +23,7 @@ const ProductDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: product, isError, isLoading } = useProduct(id);
   const { addToCart, isAddingToCart } = useCart();
+  const { showToast } = useNotification();
 
   const { isInWishlist, toggleWishlist, isAddingToWishlist, isRemovingFromWishlist } =
     useWishlist();
@@ -34,9 +36,9 @@ const ProductDetailScreen = () => {
     addToCart(
       { productId: product._id, quantity },
       {
-        onSuccess: () => Alert.alert("Success", `${product.name} added to cart!`),
+        onSuccess: () => showToast('success', 'Added to Cart!', `${product.name} has been added to your cart`),
         onError: (error: any) => {
-          Alert.alert("Error", error?.response?.data?.error || "Failed to add to cart");
+          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Could not add item to cart');
         },
       }
     );
@@ -209,25 +211,28 @@ const ProductDetailScreen = () => {
             </Text>
           </View>
           <TouchableOpacity
-            className={`rounded-2xl px-8 py-4 flex-row items-center ${!inStock ? "bg-surface" : "bg-primary"
-              }`}
+            className="rounded-2xl overflow-hidden shadow-lg shadow-green-200"
             activeOpacity={0.8}
             onPress={handleAddToCart}
             disabled={!inStock || isAddingToCart}
           >
-            {isAddingToCart ? (
-              <ActivityIndicator size="small" color="#121212" />
-            ) : (
-              <>
-                <Ionicons name="cart" size={24} color={!inStock ? "#666" : "#121212"} />
-                <Text
-                  className={`font-bold text-lg ml-2 ${!inStock ? "text-text-secondary" : "text-background"
-                    }`}
-                >
-                  {!inStock ? "Out of Stock" : "Add to Cart"}
-                </Text>
-              </>
-            )}
+            <LinearGradient
+              colors={!inStock ? ["#9CA3AF", "#6B7280"] : ["#22C55E", "#15803D"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              className="px-8 py-4 flex-row items-center"
+            >
+              {isAddingToCart ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="cart" size={24} color="#FFFFFF" />
+                  <Text className="font-bold text-lg ml-2 text-white">
+                    {!inStock ? "Stok Habis" : "Tambah ke Keranjang"}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>

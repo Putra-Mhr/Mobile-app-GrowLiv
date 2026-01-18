@@ -2,7 +2,7 @@ import SafeScreen from "@/components/SafeScreen";
 import { useAddresses } from "@/hooks/useAddressess";
 import useCart from "@/hooks/useCart";
 import { useApi } from "@/lib/api";
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useStripe } from "@stripe/stripe-react-native";
 import { useState } from "react";
 import { Address } from "@/types";
@@ -10,8 +10,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import OrderSummary from "@/components/OrderSummary";
 import AddressSelectionModal from "@/components/AddressSelectionModal";
+import { useNotification } from "@/context/NotificationContext";
 
 import * as Sentry from "@sentry/react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 const CartScreen = () => {
   const api = useApi();
@@ -28,6 +30,7 @@ const CartScreen = () => {
     updateQuantity,
   } = useCart();
   const { addresses } = useAddresses();
+  const { showToast, showConfirmation } = useNotification();
 
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
@@ -47,14 +50,14 @@ const CartScreen = () => {
   };
 
   const handleRemoveItem = (productId: string, productName: string) => {
-    Alert.alert("Remove Item", `Remove ${productName} from cart?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => removeFromCart(productId),
-      },
-    ]);
+    showConfirmation({
+      title: 'Remove Item',
+      message: `Remove "${productName}" from your cart?`,
+      type: 'danger',
+      confirmText: 'Remove',
+      cancelText: 'Keep',
+      onConfirm: () => removeFromCart(productId),
+    });
   };
 
   const handleCheckout = () => {
@@ -62,11 +65,13 @@ const CartScreen = () => {
 
     // check if user has addresses
     if (!addresses || addresses.length === 0) {
-      Alert.alert(
-        "No Address",
-        "Please add a shipping address in your profile before checking out.",
-        [{ text: "OK" }]
-      );
+      showConfirmation({
+        title: 'No Address',
+        message: 'Please add a shipping address in your profile before checking out.',
+        type: 'info',
+        confirmText: 'OK',
+        onConfirm: () => { },
+      });
       return;
     }
 
@@ -113,7 +118,7 @@ const CartScreen = () => {
           itemCount: cartItems.length,
         });
 
-        Alert.alert("Error", initError.message);
+        showToast('error', 'Payment Error', initError.message);
         setPaymentLoading(false);
         return;
       }
@@ -129,16 +134,14 @@ const CartScreen = () => {
           itemCount: cartItems.length,
         });
 
-        Alert.alert("Payment cancelled", presentError.message);
+        showToast('warning', 'Payment Cancelled', presentError.message);
       } else {
         Sentry.logger.info("Payment successful", {
           total: total.toFixed(2),
           itemCount: cartItems.length,
         });
 
-        Alert.alert("Success", "Your payment was successful! Your order is being processed.", [
-          { text: "OK", onPress: () => { } },
-        ]);
+        showToast('success', 'Payment Successful! 🎉', 'Your order is being processed');
         clearCart();
       }
     } catch (error) {
@@ -148,7 +151,7 @@ const CartScreen = () => {
         itemCount: cartItems.length,
       });
 
-      Alert.alert("Error", "Failed to process payment");
+      showToast('error', 'Payment Failed', 'Failed to process payment. Please try again.');
     } finally {
       setPaymentLoading(false);
     }
@@ -159,87 +162,86 @@ const CartScreen = () => {
   if (cartItems.length === 0) return <EmptyUI />;
 
   return (
-    <SafeScreen>
-      <Text className="px-6 pb-5 text-text-primary text-3xl font-bold tracking-tight">Cart</Text>
+    <View className="flex-1 bg-white">
+      {/* Green Header Background */}
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          paddingTop: 50,
+          paddingBottom: 20,
+          paddingHorizontal: 24,
+        }}
+      >
+        <Text className="text-white text-3xl font-bold tracking-tight">Keranjang</Text>
+      </LinearGradient>
 
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 240 }}
       >
-        <View className="px-6 gap-2">
+        <View className="px-6 gap-3 mt-4">
           {cartItems.map((item, index) => (
-            <View key={item._id} className="bg-surface rounded-3xl overflow-hidden ">
+            <View key={item._id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
               <View className="p-4 flex-row">
                 {/* product image */}
                 <View className="relative">
                   <Image
                     source={item.product.images[0]}
-                    className="bg-background-lighter"
+                    className="bg-gray-100"
                     contentFit="cover"
-                    style={{ width: 112, height: 112, borderRadius: 16 }}
+                    style={{ width: 100, height: 100, borderRadius: 16 }}
                   />
-                  <View className="absolute top-2 right-2 bg-primary rounded-full px-2 py-0.5">
-                    <Text className="text-background text-xs font-bold">×{item.quantity}</Text>
+                  <View className="absolute top-2 right-2 bg-green-500 rounded-full px-2 py-0.5">
+                    <Text className="text-white text-xs font-bold">×{item.quantity}</Text>
                   </View>
                 </View>
 
                 <View className="flex-1 ml-4 justify-between">
                   <View>
                     <Text
-                      className="text-text-primary font-bold text-lg leading-tight"
+                      className="text-gray-800 font-bold text-lg leading-tight"
                       numberOfLines={2}
                     >
                       {item.product.name}
                     </Text>
                     <View className="flex-row items-center mt-2">
-                      <Text className="text-primary font-bold text-2xl">
+                      <Text className="text-green-600 font-bold text-xl">
                         Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
-                      </Text>
-                      <Text className="text-text-secondary text-sm ml-2">
-                        Rp {item.product.price.toLocaleString("id-ID")} each
                       </Text>
                     </View>
                   </View>
 
-                  <View className="flex-row items-center mt-3">
-                    <TouchableOpacity
-                      className="bg-background-lighter rounded-full w-9 h-9 items-center justify-center"
-                      activeOpacity={0.7}
-                      onPress={() => handleQuantityChange(item.product._id, item.quantity, -1)}
-                      disabled={isUpdating}
-                    >
-                      {isUpdating ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Ionicons name="remove" size={18} color="#FFFFFF" />
-                      )}
-                    </TouchableOpacity>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <View className="flex-row items-center bg-gray-50 rounded-full">
+                      <TouchableOpacity
+                        className="w-8 h-8 items-center justify-center rounded-full bg-white shadow-sm"
+                        onPress={() => handleQuantityChange(item.product._id, item.quantity, -1)}
+                        disabled={isUpdating}
+                      >
+                        <Ionicons name="remove" size={16} color="#374151" />
+                      </TouchableOpacity>
 
-                    <View className="mx-4 min-w-[32px] items-center">
-                      <Text className="text-text-primary font-bold text-lg">{item.quantity}</Text>
+                      <Text className="text-gray-800 font-bold text-base mx-3">{item.quantity}</Text>
+
+                      <TouchableOpacity
+                        className="w-8 h-8 items-center justify-center rounded-full bg-green-500 shadow-sm"
+                        onPress={() => handleQuantityChange(item.product._id, item.quantity, 1)}
+                        disabled={isUpdating}
+                      >
+                        <Ionicons name="add" size={16} color="#FFFFFF" />
+                      </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
-                      className="bg-primary rounded-full w-9 h-9 items-center justify-center"
-                      activeOpacity={0.7}
-                      onPress={() => handleQuantityChange(item.product._id, item.quantity, 1)}
-                      disabled={isUpdating}
-                    >
-                      {isUpdating ? (
-                        <ActivityIndicator size="small" color="#121212" />
-                      ) : (
-                        <Ionicons name="add" size={18} color="#121212" />
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      className="ml-auto bg-red-500/10 rounded-full w-9 h-9 items-center justify-center"
+                      className="w-8 h-8 items-center justify-center bg-red-50 rounded-full"
                       activeOpacity={0.7}
                       onPress={() => handleRemoveItem(item.product._id, item.product.name)}
                       disabled={isRemoving}
                     >
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -252,19 +254,20 @@ const CartScreen = () => {
       </ScrollView>
 
       <View
-        className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur-xl border-t
-       border-surface pt-4 pb-32 px-6"
+        className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 pt-4 pb-32 px-6"
       >
         {/* Quick Stats */}
         <View className="flex-row items-center justify-between mb-4">
           <View className="flex-row items-center">
-            <Ionicons name="cart" size={20} color="#1DB954" />
-            <Text className="text-text-secondary ml-2">
-              {cartItemCount} {cartItemCount === 1 ? "item" : "items"}
+            <View className="w-10 h-10 rounded-full bg-green-100 items-center justify-center mr-3">
+              <Ionicons name="cart" size={20} color="#16A34A" />
+            </View>
+            <Text className="text-gray-500">
+              {cartItemCount} {cartItemCount === 1 ? "barang" : "barang"}
             </Text>
           </View>
           <View className="flex-row items-center">
-            <Text className="text-text-primary font-bold text-xl">
+            <Text className="text-gray-800 font-bold text-xl">
               Rp {total.toLocaleString("id-ID")}
             </Text>
           </View>
@@ -272,21 +275,26 @@ const CartScreen = () => {
 
         {/* Checkout Button */}
         <TouchableOpacity
-          className="bg-primary rounded-2xl overflow-hidden"
+          className="bg-green-500 rounded-2xl overflow-hidden shadow-lg shadow-green-200"
           activeOpacity={0.9}
           onPress={handleCheckout}
           disabled={paymentLoading}
         >
-          <View className="py-5 flex-row items-center justify-center">
+          <LinearGradient
+            colors={["#22C55E", "#15803D"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            className="py-5 flex-row items-center justify-center"
+          >
             {paymentLoading ? (
-              <ActivityIndicator size="small" color="#121212" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <Text className="text-background font-bold text-lg mr-2">Checkout</Text>
-                <Ionicons name="arrow-forward" size={20} color="#121212" />
+                <Text className="text-white font-bold text-lg mr-2">Bayar Sekarang</Text>
+                <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
               </>
             )}
-          </View>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
@@ -296,7 +304,7 @@ const CartScreen = () => {
         onProceed={handleProceedWithPayment}
         isProcessing={paymentLoading}
       />
-    </SafeScreen>
+    </View>
   );
 };
 

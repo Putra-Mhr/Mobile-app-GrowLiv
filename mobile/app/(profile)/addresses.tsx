@@ -6,7 +6,8 @@ import { useAddresses } from "@/hooks/useAddressess";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useNotification } from "@/context/NotificationContext";
 
 function AddressesScreen() {
   const {
@@ -20,6 +21,7 @@ function AddressesScreen() {
     isUpdatingAddress,
     updateAddress,
   } = useAddresses();
+  const { showToast, showConfirmation } = useNotification();
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addressForm, setAddressForm] = useState({
@@ -64,10 +66,14 @@ function AddressesScreen() {
   };
 
   const handleDeleteAddress = (addressId: string, label: string) => {
-    Alert.alert("Delete Address", `Are you sure you want to delete ${label}`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteAddress(addressId) },
-    ]);
+    showConfirmation({
+      title: 'Delete Address',
+      message: `Are you sure you want to delete "${label}"?`,
+      type: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: () => deleteAddress(addressId),
+    });
   };
 
   const handleSaveAddress = () => {
@@ -80,7 +86,7 @@ function AddressesScreen() {
       !addressForm.zipCode ||
       !addressForm.phoneNumber
     ) {
-      Alert.alert("Error", "Please fill in all fields");
+      showToast('error', 'Missing Information', 'Please fill in all fields');
       return;
     }
 
@@ -95,10 +101,10 @@ function AddressesScreen() {
           onSuccess: () => {
             setShowAddressForm(false);
             setEditingAddressId(null);
-            Alert.alert("Success", "Address updated successfully");
+            showToast('success', 'Address Updated', 'Your address has been updated successfully');
           },
           onError: (error: any) => {
-            Alert.alert("Error", error?.response?.data?.error || "Failed to update address");
+            showToast('error', 'Update Failed', error?.response?.data?.error || 'Failed to update address');
           },
         }
       );
@@ -107,10 +113,10 @@ function AddressesScreen() {
       addAddress(addressForm, {
         onSuccess: () => {
           setShowAddressForm(false);
-          Alert.alert("Success", "Address added successfully");
+          showToast('success', 'Address Added', 'New address has been added successfully');
         },
         onError: (error: any) => {
-          Alert.alert("Error", error?.response?.data?.error || "Failed to add address");
+          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Failed to add address');
         },
       });
     }
