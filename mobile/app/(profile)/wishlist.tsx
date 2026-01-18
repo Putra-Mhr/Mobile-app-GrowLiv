@@ -4,33 +4,34 @@ import useWishlist from "@/hooks/useWishlist";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useNotification } from "@/context/NotificationContext";
 
 function WishlistScreen() {
   const { wishlist, isLoading, isError, removeFromWishlist, isRemovingFromWishlist } =
     useWishlist();
 
   const { addToCart, isAddingToCart } = useCart();
+  const { showToast, showConfirmation } = useNotification();
 
   const handleRemoveFromWishlist = (productId: string, productName: string) => {
-    Alert.alert("Remove from wishlist", `Remove ${productName} from wishlist`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-
-        onPress: () => removeFromWishlist(productId),
-      },
-    ]);
+    showConfirmation({
+      title: 'Remove from Wishlist',
+      message: `Remove "${productName}" from your wishlist?`,
+      type: 'warning',
+      confirmText: 'Remove',
+      cancelText: 'Keep',
+      onConfirm: () => removeFromWishlist(productId),
+    });
   };
 
   const handleAddToCart = (productId: string, productName: string) => {
     addToCart(
       { productId, quantity: 1 },
       {
-        onSuccess: () => Alert.alert("Success", `${productName} added to cart!`),
+        onSuccess: () => showToast('success', 'Added to Cart!', `${productName} has been added to your cart`),
         onError: (error: any) => {
-          Alert.alert("Error", error?.response?.data?.error || "Failed to add to cart");
+          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Could not add item to cart');
         },
       }
     );
