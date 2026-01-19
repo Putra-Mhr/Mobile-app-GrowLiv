@@ -332,6 +332,7 @@ const HomeScreen = () => {
                   className="bg-gray-50 rounded-2xl overflow-hidden"
                   style={{ width: 150 }}
                   activeOpacity={0.8}
+                  onPress={() => router.push(`/product/${product._id}`)}
                 >
                   <Image
                     source={{ uri: product.images?.[0] || "https://via.placeholder.com/150" }}
@@ -350,7 +351,8 @@ const HomeScreen = () => {
               ))}
             </ScrollView>
           </View>
-        )}
+        )
+        }
 
         {/* Products Section */}
         <View className="px-5 mt-6">
@@ -373,8 +375,8 @@ const HomeScreen = () => {
           {/* Products Grid */}
           <ProductsGrid products={filteredProducts} isLoading={isLoading} isError={isError} />
         </View>
-      </ScrollView>
-    </View>
+      </ScrollView >
+    </View >
   );
 };
 
