@@ -1,6 +1,4 @@
-import SafeScreen from "@/components/SafeScreen";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,11 +6,16 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 
 const MENU_ITEMS = [
-  { id: 1, icon: "person-outline", title: "Edit Profile", color: "#3B82F6", action: "/profile" },
-  { id: 2, icon: "list-outline", title: "Orders", color: "#10B981", action: "/orders" },
-  { id: 3, icon: "location-outline", title: "Addresses", color: "#F59E0B", action: "/addresses" },
-  { id: 4, icon: "heart-outline", title: "Wishlist", color: "#EF4444", action: "/wishlist" },
+  { id: 1, icon: "person-outline", title: "Edit Profil", color: "#3B82F6", bgColor: "#DBEAFE", action: "/profile" },
+  { id: 2, icon: "list-outline", title: "Pesanan", color: "#10B981", bgColor: "#D1FAE5", action: "/orders" },
+  { id: 3, icon: "location-outline", title: "Alamat", color: "#F59E0B", bgColor: "#FEF3C7", action: "/addresses" },
+  { id: 4, icon: "heart-outline", title: "Wishlist", color: "#EF4444", bgColor: "#FEE2E2", action: "/wishlist" },
 ] as const;
+
+const BADGES = [
+  { icon: "leaf", label: "Petani Aktif", color: "#22C55E" },
+  { icon: "star", label: "Member Gold", color: "#F59E0B" },
+];
 
 const ProfileScreen = () => {
   const { signOut } = useAuth();
@@ -24,102 +27,165 @@ const ProfileScreen = () => {
   };
 
   return (
-    <View className="flex-1 bg-white">
-      {/* Green Header Background */}
+    <View className="flex-1 bg-gray-50">
+      {/* Green Header with Pattern Overlay */}
       <LinearGradient
         colors={["#22C55E", "#16A34A"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
-          height: 200,
+          height: 220,
           paddingTop: 50,
           paddingHorizontal: 20,
         }}
       >
-        <Text className="text-white text-3xl font-bold tracking-tight mb-6">Profile</Text>
+        {/* Decorative leaves in header */}
+        <View className="absolute top-12 right-4 opacity-20">
+          <Ionicons name="leaf" size={80} color="#FFFFFF" style={{ transform: [{ rotate: "30deg" }] }} />
+        </View>
+        <View className="absolute top-24 left-8 opacity-10">
+          <Ionicons name="leaf" size={60} color="#FFFFFF" style={{ transform: [{ rotate: "-20deg" }] }} />
+        </View>
+
+        <View className="flex-row items-center justify-between">
+          <Text className="text-white text-3xl font-bold tracking-tight">Profil</Text>
+          <TouchableOpacity className="bg-white/20 p-2 rounded-xl">
+            <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       <ScrollView
-        className="flex-1 -mt-20"
+        className="flex-1 -mt-24"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* PROFILE CARD */}
-        <View className="px-6 pb-6">
-          <View className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <View className="px-5 pb-4">
+          <View className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <View className="flex-row items-center">
               <View className="relative">
-                <Image
-                  source={user?.imageUrl}
-                  style={{ width: 80, height: 80, borderRadius: 40 }}
-                  transition={200}
-                />
-                <View className="absolute -bottom-1 -right-1 bg-green-500 rounded-full size-7 items-center justify-center border-2 border-white">
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                <View className="p-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-500">
+                  <Image
+                    source={user?.imageUrl}
+                    style={{ width: 76, height: 76, borderRadius: 38, borderWidth: 3, borderColor: '#FFFFFF' }}
+                    transition={200}
+                  />
+                </View>
+                <View className="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-7 h-7 items-center justify-center border-2 border-white">
+                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                 </View>
               </View>
 
               <View className="flex-1 ml-4">
-                <Text className="text-gray-800 text-2xl font-bold mb-1">
+                <Text className="text-gray-800 text-xl font-bold mb-1">
                   {user?.firstName} {user?.lastName}
                 </Text>
-                <Text className="text-gray-500 text-sm">
+                <Text className="text-gray-500 text-sm mb-2">
                   {user?.emailAddresses?.[0]?.emailAddress || "No email"}
                 </Text>
+                {/* Achievement Badges */}
+                <View className="flex-row gap-2">
+                  {BADGES.map((badge, idx) => (
+                    <View key={idx} className="flex-row items-center bg-green-50 px-2 py-1 rounded-full">
+                      <Ionicons name={badge.icon as any} size={12} color={badge.color} />
+                      <Text className="text-xs font-medium ml-1" style={{ color: badge.color }}>
+                        {badge.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
         </View>
 
-        {/* MENU ITEMS */}
-        <View className="flex-row flex-wrap gap-3 mx-6 mb-4">
+        {/* Gardening Tip of the Day */}
+        <View className="px-5 mb-4">
+          <LinearGradient
+            colors={["#ECFDF5", "#D1FAE5"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            className="rounded-2xl p-4"
+          >
+            <View className="flex-row items-center mb-2">
+              <View className="bg-green-500 p-2 rounded-lg mr-2">
+                <Ionicons name="bulb" size={16} color="#FFFFFF" />
+              </View>
+              <Text className="text-green-800 font-bold">Tips Berkebun Hari Ini</Text>
+            </View>
+            <Text className="text-green-700 text-sm leading-5">
+              🌱 Siram tanaman di pagi hari sebelum matahari terik untuk hasil optimal!
+            </Text>
+          </LinearGradient>
+        </View>
+
+        {/* MENU ITEMS - Grid Layout */}
+        <View className="flex-row flex-wrap gap-3 mx-5 mb-4">
           {MENU_ITEMS.map((item) => (
             <TouchableOpacity
               key={item.id}
-              className="bg-white rounded-2xl p-6 items-center justify-center shadow-sm border border-gray-100"
-              style={{ width: "48%" }}
+              className="bg-white rounded-2xl p-5 items-center justify-center shadow-sm border border-gray-100"
+              style={{ width: "47%" }}
               activeOpacity={0.7}
               onPress={() => handleMenuPress(item.action)}
             >
-              <View
-                className="rounded-full w-14 h-14 items-center justify-center mb-3"
-                style={{ backgroundColor: item.color + "20" }}
+              <LinearGradient
+                colors={[item.bgColor, item.bgColor]}
+                className="rounded-2xl w-14 h-14 items-center justify-center mb-3"
               >
                 <Ionicons name={item.icon} size={24} color={item.color} />
-              </View>
+              </LinearGradient>
               <Text className="text-gray-800 font-bold text-base">{item.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* NOTIFICATONS BTN */}
-        <View className="mb-3 mx-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        {/* NOTIFICATIONS BTN */}
+        <View className="mb-3 mx-5 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <TouchableOpacity
-            className="flex-row items-center justify-between py-2"
+            className="flex-row items-center justify-between"
             activeOpacity={0.7}
           >
             <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-green-50 items-center justify-center mr-3">
+              <LinearGradient
+                colors={["#DCFCE7", "#BBF7D0"]}
+                className="w-11 h-11 rounded-xl items-center justify-center mr-3"
+              >
                 <Ionicons name="notifications-outline" size={22} color="#16A34A" />
+              </LinearGradient>
+              <View>
+                <Text className="text-gray-800 font-semibold text-base">Notifikasi</Text>
+                <Text className="text-gray-500 text-xs">Kelola preferensi notifikasi</Text>
               </View>
-              <Text className="text-gray-800 font-semibold text-lg">Notifications</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            <View className="flex-row items-center">
+              <View className="bg-red-500 w-5 h-5 rounded-full items-center justify-center mr-2">
+                <Text className="text-white text-xs font-bold">3</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* PRIVACY AND SECURTIY LINK */}
-        <View className="mb-6 mx-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        {/* PRIVACY AND SECURITY LINK */}
+        <View className="mb-6 mx-5 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <TouchableOpacity
-            className="flex-row items-center justify-between py-2"
+            className="flex-row items-center justify-between"
             activeOpacity={0.7}
             onPress={() => router.push("/privacy-security")}
           >
             <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-blue-50 items-center justify-center mr-3">
+              <LinearGradient
+                colors={["#DBEAFE", "#BFDBFE"]}
+                className="w-11 h-11 rounded-xl items-center justify-center mr-3"
+              >
                 <Ionicons name="shield-checkmark-outline" size={22} color="#3B82F6" />
+              </LinearGradient>
+              <View>
+                <Text className="text-gray-800 font-semibold text-base">Privasi & Keamanan</Text>
+                <Text className="text-gray-500 text-xs">Pengaturan akun dan keamanan</Text>
               </View>
-              <Text className="text-gray-800 font-semibold text-lg">Privacy & Security</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
@@ -127,47 +193,25 @@ const ProfileScreen = () => {
 
         {/* SIGNOUT BTN */}
         <TouchableOpacity
-          className="mx-6 mb-3 bg-red-50 rounded-2xl py-4 flex-row items-center justify-center"
+          className="mx-5 mb-3 overflow-hidden rounded-2xl"
           activeOpacity={0.8}
           onPress={() => signOut()}
         >
-          <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-          <Text className="text-red-500 font-bold text-base ml-2">Sign Out</Text>
+          <LinearGradient
+            colors={["#FEE2E2", "#FECACA"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            className="py-4 flex-row items-center justify-center"
+          >
+            <Ionicons name="log-out-outline" size={22} color="#DC2626" />
+            <Text className="text-red-600 font-bold text-base ml-2">Keluar</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
-        <Text className="mx-6 mb-3 text-center text-gray-400 text-xs text-secondary">Version 1.0.0</Text>
+        <Text className="mx-5 mb-3 text-center text-gray-400 text-xs">Version 1.0.0</Text>
       </ScrollView>
     </View>
   );
 };
 
 export default ProfileScreen;
-
-// REACT NATIVE IMAGE VS EXPO IMAGE:
-
-// React Native Image (what we have used so far):
-// import { Image } from "react-native";
-//
-// <Image source={{ uri: url }} />
-
-// Basic image component
-// No built-in caching optimization
-// Requires source={{ uri: string }}
-
-// Expo Image (from expo-image):
-// import { Image } from "expo-image";
-
-// <Image source={url} />
-
-// Caching - automatic disk/memory caching
-// Placeholder - blur hash, thumbnail while loading
-// Transitions - crossfade, fade animations
-// Better performance - optimized native rendering
-// Simpler syntax: source={url} or source={{ uri: url }}
-// Supports contentFit instead of resizeMode
-
-// Example with expo-image:
-// <Image   source={user?.imageUrl}  placeholder={blurhash}  transition={200}  contentFit="cover"  className="size-20 rounded-full"/>
-
-// Recommendation: For production apps, expo-image is better — faster, cached, smoother UX.
-// React Native's Image works fine for simple cases though.

@@ -1,5 +1,4 @@
 import RatingModal from "@/components/RatingModal";
-import SafeScreen from "@/components/SafeScreen";
 import { useOrders } from "@/hooks/useOrders";
 import { useReviews } from "@/hooks/useReviews";
 import { capitalizeFirstLetter, formatDate, getStatusColor } from "@/lib/utils";
@@ -10,6 +9,15 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useNotification } from "@/context/NotificationContext";
+import { LinearGradient } from "expo-linear-gradient";
+
+const STATUS_ICONS: { [key: string]: { icon: string; label: string } } = {
+  pending: { icon: "time-outline", label: "Menunggu" },
+  processing: { icon: "reload-outline", label: "Diproses" },
+  shipped: { icon: "car-outline", label: "Dikirim" },
+  delivered: { icon: "checkmark-circle-outline", label: "Selesai" },
+  cancelled: { icon: "close-circle-outline", label: "Dibatalkan" },
+};
 
 function OrdersScreen() {
   const { data: orders, isLoading, isError } = useOrders();
@@ -24,7 +32,6 @@ function OrdersScreen() {
     setShowRatingModal(true);
     setSelectedOrder(order);
 
-    // init ratings for all product to 0 - resettin the state for each product
     const initialRatings: { [key: string]: number } = {};
     order.orderItems.forEach((item) => {
       const productId = item.product._id;
@@ -36,10 +43,9 @@ function OrdersScreen() {
   const handleSubmitRating = async () => {
     if (!selectedOrder) return;
 
-    // check if all products have been rated
     const allRated = Object.values(productRatings).every((rating) => rating > 0);
     if (!allRated) {
-      showToast('warning', 'Incomplete Rating', 'Please rate all products before submitting');
+      showToast('warning', 'Rating Belum Lengkap', 'Berikan rating untuk semua produk');
       return;
     }
 
@@ -54,127 +60,159 @@ function OrdersScreen() {
         })
       );
 
-      showToast('success', 'Thank You! ⭐', 'Your ratings have been submitted successfully');
+      showToast('success', 'Terima Kasih! ⭐', 'Rating Anda telah dikirim');
       setShowRatingModal(false);
       setSelectedOrder(null);
       setProductRatings({});
     } catch (error: any) {
-      showToast('error', 'Rating Failed', error?.response?.data?.error || 'Failed to submit rating');
+      showToast('error', 'Gagal Mengirim', error?.response?.data?.error || 'Gagal mengirim rating');
     }
   };
 
+  if (isLoading) return <LoadingUI />;
+  if (isError) return <ErrorUI />;
+  if (!orders || orders.length === 0) return <EmptyUI />;
+
   return (
-    <SafeScreen>
+    <View className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className="px-6 pb-5 border-b border-surface flex-row items-center">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-          <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text className="text-text-primary text-2xl font-bold">My Orders</Text>
-      </View>
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="bg-white/20 p-2 rounded-xl mr-3"
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View>
+            <Text className="text-white text-2xl font-bold">Pesanan Saya</Text>
+            <Text className="text-white/70 text-sm">{orders.length} pesanan</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
-      {isLoading ? (
-        <LoadingUI />
-      ) : isError ? (
-        <ErrorUI />
-      ) : !orders || orders.length === 0 ? (
-        <EmptyUI />
-      ) : (
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          <View className="px-6 py-4">
-            {orders.map((order) => {
-              const totalItems = order.orderItems.reduce((sum, item) => sum + item.quantity, 0);
-              const firstImage = order.orderItems[0]?.image || "";
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        <View className="px-5 py-4">
+          {orders.map((order) => {
+            const totalItems = order.orderItems.reduce((sum, item) => sum + item.quantity, 0);
+            const firstImage = order.orderItems[0]?.image || "";
+            const statusInfo = STATUS_ICONS[order.status] || STATUS_ICONS.pending;
 
-              return (
-                <View key={order._id} className="bg-surface rounded-3xl p-5 mb-4">
-                  <View className="flex-row mb-4">
-                    <View className="relative">
-                      <Image
-                        source={firstImage}
-                        style={{ height: 80, width: 80, borderRadius: 8 }}
-                        contentFit="cover"
-                      />
-
-                      {/* BADGE FOR MORE ITEMS */}
-                      {order.orderItems.length > 1 && (
-                        <View className="absolute -bottom-1 -right-1 bg-primary rounded-full size-7 items-center justify-center">
-                          <Text className="text-background text-xs font-bold">
-                            +{order.orderItems.length - 1}
-                          </Text>
-                        </View>
-                      )}
+            return (
+              <View key={order._id} className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-gray-100">
+                {/* Order Header */}
+                <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
+                  <View className="flex-row items-center">
+                    <View className="bg-green-50 p-2 rounded-lg mr-2">
+                      <Ionicons name="receipt-outline" size={16} color="#22C55E" />
                     </View>
-
-                    <View className="flex-1 ml-4">
-                      <Text className="text-text-primary font-bold text-base mb-1">
-                        Order #{order._id.slice(-8).toUpperCase()}
+                    <View>
+                      <Text className="text-gray-800 font-bold text-sm">
+                        #{order._id.slice(-8).toUpperCase()}
                       </Text>
-                      <Text className="text-text-secondary text-sm mb-2">
+                      <Text className="text-gray-500 text-xs">
                         {formatDate(order.createdAt)}
                       </Text>
-                      <View
-                        className="self-start px-3 py-1.5 rounded-full"
-                        style={{ backgroundColor: getStatusColor(order.status) + "20" }}
-                      >
-                        <Text
-                          className="text-xs font-bold"
-                          style={{ color: getStatusColor(order.status) }}
-                        >
-                          {capitalizeFirstLetter(order.status)}
-                        </Text>
-                      </View>
                     </View>
                   </View>
-
-                  {/* ORDER ITEMS SUMMARY */}
-                  {order.orderItems.map((item, index) => (
+                  <View
+                    className="px-3 py-1 rounded-full flex-row items-center"
+                    style={{ backgroundColor: getStatusColor(order.status) + "20" }}
+                  >
+                    <Ionicons
+                      name={statusInfo.icon as any}
+                      size={12}
+                      color={getStatusColor(order.status)}
+                    />
                     <Text
-                      key={item._id}
-                      className="text-text-secondary text-sm flex-1"
-                      numberOfLines={1}
+                      className="text-xs font-bold ml-1"
+                      style={{ color: getStatusColor(order.status) }}
                     >
-                      {item.name} × {item.quantity}
+                      {statusInfo.label}
                     </Text>
-                  ))}
-
-                  <View className="border-t border-background-lighter pt-3 flex-row justify-between items-center">
-                    <View>
-                      <Text className="text-text-secondary text-xs mb-1">{totalItems} items</Text>
-                      <Text className="text-primary font-bold text-xl">
-                        Rp {order.totalPrice.toLocaleString("id-ID")}
-                      </Text>
-                    </View>
-
-                    {order.status === "delivered" &&
-                      (order.hasReviewed ? (
-                        <View className="bg-primary/20 px-5 py-3 rounded-full flex-row items-center">
-                          <Ionicons name="checkmark-circle" size={18} color="#1DB954" />
-                          <Text className="text-primary font-bold text-sm ml-2">Reviewed</Text>
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          className="bg-primary px-5 py-3 rounded-full flex-row items-center"
-                          activeOpacity={0.7}
-                          onPress={() => handleOpenRating(order)}
-                        >
-                          <Ionicons name="star" size={18} color="#121212" />
-                          <Text className="text-background font-bold text-sm ml-2">
-                            Leave Rating
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
                   </View>
                 </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-      )}
+
+                {/* Order Items */}
+                <View className="flex-row mb-3">
+                  <View className="relative">
+                    <Image
+                      source={firstImage}
+                      style={{ height: 70, width: 70, borderRadius: 10 }}
+                      contentFit="cover"
+                    />
+                    {order.orderItems.length > 1 && (
+                      <View className="absolute -bottom-1 -right-1 bg-green-500 rounded-full w-6 h-6 items-center justify-center border-2 border-white">
+                        <Text className="text-white text-xs font-bold">
+                          +{order.orderItems.length - 1}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View className="flex-1 ml-3">
+                    {order.orderItems.slice(0, 2).map((item) => (
+                      <Text
+                        key={item._id}
+                        className="text-gray-600 text-sm"
+                        numberOfLines={1}
+                      >
+                        {item.name} × {item.quantity}
+                      </Text>
+                    ))}
+                    {order.orderItems.length > 2 && (
+                      <Text className="text-gray-400 text-xs mt-1">
+                        +{order.orderItems.length - 2} produk lainnya
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Order Footer */}
+                <View className="flex-row justify-between items-center pt-3 border-t border-gray-100">
+                  <View>
+                    <Text className="text-gray-500 text-xs">{totalItems} barang</Text>
+                    <Text className="text-green-600 font-bold text-lg">
+                      Rp {order.totalPrice.toLocaleString("id-ID")}
+                    </Text>
+                  </View>
+
+                  {order.status === "delivered" &&
+                    (order.hasReviewed ? (
+                      <View className="bg-green-50 px-4 py-2 rounded-xl flex-row items-center">
+                        <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                        <Text className="text-green-600 font-semibold text-sm ml-1">Sudah Direview</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        className="overflow-hidden rounded-xl"
+                        activeOpacity={0.7}
+                        onPress={() => handleOpenRating(order)}
+                      >
+                        <LinearGradient
+                          colors={["#F59E0B", "#D97706"]}
+                          className="px-4 py-2 flex-row items-center"
+                        >
+                          <Ionicons name="star" size={16} color="#FFFFFF" />
+                          <Text className="text-white font-bold text-sm ml-1">Beri Rating</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
 
       <RatingModal
         visible={showRatingModal}
@@ -187,40 +225,83 @@ function OrdersScreen() {
           setProductRatings((prev) => ({ ...prev, [productId]: rating }))
         }
       />
-    </SafeScreen>
+    </View>
   );
 }
 export default OrdersScreen;
 
 function LoadingUI() {
   return (
-    <View className="flex-1 items-center justify-center">
-      <ActivityIndicator size="large" color="#00D9FF" />
-      <Text className="text-text-secondary mt-4">Loading orders...</Text>
+    <View className="flex-1 bg-gray-50">
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-xl mr-3">
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-2xl font-bold">Pesanan Saya</Text>
+        </View>
+      </LinearGradient>
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text className="text-gray-500 mt-4">Memuat pesanan...</Text>
+      </View>
     </View>
   );
 }
 
 function ErrorUI() {
   return (
-    <View className="flex-1 items-center justify-center px-6">
-      <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
-      <Text className="text-text-primary font-semibold text-xl mt-4">Failed to load orders</Text>
-      <Text className="text-text-secondary text-center mt-2">
-        Please check your connection and try again
-      </Text>
+    <View className="flex-1 bg-gray-50">
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-xl mr-3">
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-2xl font-bold">Pesanan Saya</Text>
+        </View>
+      </LinearGradient>
+      <View className="flex-1 items-center justify-center px-6">
+        <View className="bg-red-50 p-6 rounded-full mb-4">
+          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        </View>
+        <Text className="text-gray-800 font-bold text-xl">Gagal Memuat</Text>
+        <Text className="text-gray-500 text-center mt-2">
+          Periksa koneksi internet Anda
+        </Text>
+      </View>
     </View>
   );
 }
 
 function EmptyUI() {
   return (
-    <View className="flex-1 items-center justify-center px-6">
-      <Ionicons name="receipt-outline" size={80} color="#666" />
-      <Text className="text-text-primary font-semibold text-xl mt-4">No orders yet</Text>
-      <Text className="text-text-secondary text-center mt-2">
-        Your order history will appear here
-      </Text>
+    <View className="flex-1 bg-gray-50">
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-xl mr-3">
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-2xl font-bold">Pesanan Saya</Text>
+        </View>
+      </LinearGradient>
+      <View className="flex-1 items-center justify-center px-6">
+        <View className="bg-green-50 p-6 rounded-full mb-4">
+          <Ionicons name="receipt-outline" size={48} color="#22C55E" />
+        </View>
+        <Text className="text-gray-800 font-bold text-xl">Belum Ada Pesanan</Text>
+        <Text className="text-gray-500 text-center mt-2">
+          Riwayat pesanan Anda akan muncul di sini
+        </Text>
+      </View>
     </View>
   );
 }

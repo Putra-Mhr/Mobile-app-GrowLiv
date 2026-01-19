@@ -1,13 +1,13 @@
 import AddressCard from "@/components/AddressCard";
-import AddressesHeader from "@/components/AddressesHeader";
 import AddressFormModal from "@/components/AddressFormModal";
-import SafeScreen from "@/components/SafeScreen";
 import { useAddresses } from "@/hooks/useAddressess";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useNotification } from "@/context/NotificationContext";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 
 function AddressesScreen() {
   const {
@@ -67,11 +67,11 @@ function AddressesScreen() {
 
   const handleDeleteAddress = (addressId: string, label: string) => {
     showConfirmation({
-      title: 'Delete Address',
-      message: `Are you sure you want to delete "${label}"?`,
+      title: 'Hapus Alamat',
+      message: `Yakin ingin menghapus "${label}"?`,
       type: 'danger',
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      confirmText: 'Hapus',
+      cancelText: 'Batal',
       onConfirm: () => deleteAddress(addressId),
     });
   };
@@ -86,12 +86,11 @@ function AddressesScreen() {
       !addressForm.zipCode ||
       !addressForm.phoneNumber
     ) {
-      showToast('error', 'Missing Information', 'Please fill in all fields');
+      showToast('error', 'Data Belum Lengkap', 'Mohon isi semua field');
       return;
     }
 
     if (editingAddressId) {
-      // update an existing address
       updateAddress(
         {
           addressId: editingAddressId,
@@ -101,22 +100,21 @@ function AddressesScreen() {
           onSuccess: () => {
             setShowAddressForm(false);
             setEditingAddressId(null);
-            showToast('success', 'Address Updated', 'Your address has been updated successfully');
+            showToast('success', 'Berhasil! ✓', 'Alamat berhasil diperbarui');
           },
           onError: (error: any) => {
-            showToast('error', 'Update Failed', error?.response?.data?.error || 'Failed to update address');
+            showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal memperbarui alamat');
           },
         }
       );
     } else {
-      // create new address
       addAddress(addressForm, {
         onSuccess: () => {
           setShowAddressForm(false);
-          showToast('success', 'Address Added', 'New address has been added successfully');
+          showToast('success', 'Berhasil! ✓', 'Alamat baru berhasil ditambahkan');
         },
         onError: (error: any) => {
-          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Failed to add address');
+          showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambah alamat');
         },
       });
     }
@@ -131,22 +129,59 @@ function AddressesScreen() {
   if (isError) return <ErrorUI />;
 
   return (
-    <SafeScreen>
-      <AddressesHeader />
+    <View className="flex-1 bg-gray-50">
+      {/* Header */}
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="bg-white/20 p-2 rounded-xl mr-3"
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="text-white text-2xl font-bold">Alamat Saya</Text>
+            <Text className="text-white/70 text-sm">
+              {addresses.length} alamat tersimpan
+            </Text>
+          </View>
+          <View className="bg-white/20 p-2 rounded-xl">
+            <Ionicons name="location" size={22} color="#FFFFFF" />
+          </View>
+        </View>
+      </LinearGradient>
 
       {addresses.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Ionicons name="location-outline" size={80} color="#666" />
-          <Text className="text-text-primary font-semibold text-xl mt-4">No addresses yet</Text>
-          <Text className="text-text-secondary text-center mt-2">
-            Add your first delivery address
+        <View className="flex-1 items-center justify-center px-8">
+          <View className="relative mb-6">
+            <View className="bg-amber-50 p-8 rounded-full">
+              <Ionicons name="location-outline" size={64} color="#F59E0B" />
+            </View>
+            <View className="absolute -bottom-2 -right-2 bg-white rounded-full p-2 shadow-sm">
+              <Ionicons name="leaf" size={24} color="#22C55E" />
+            </View>
+          </View>
+          <Text className="text-gray-800 font-bold text-xl">Belum Ada Alamat</Text>
+          <Text className="text-gray-500 text-center mt-2 mb-6">
+            Tambahkan alamat pengiriman untuk menerima pesanan Anda
           </Text>
           <TouchableOpacity
-            className="bg-primary rounded-2xl px-8 py-4 mt-6"
+            className="overflow-hidden rounded-xl"
             activeOpacity={0.8}
             onPress={handleAddAddress}
           >
-            <Text className="text-background font-bold text-base">Add Address</Text>
+            <LinearGradient
+              colors={["#22C55E", "#15803D"]}
+              className="px-6 py-3 flex-row items-center"
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+              <Text className="text-white font-bold ml-2">Tambah Alamat</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : (
@@ -155,7 +190,7 @@ function AddressesScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
         >
-          <View className="px-6 py-4">
+          <View className="px-5 py-4">
             {addresses.map((address) => (
               <AddressCard
                 key={address._id}
@@ -168,14 +203,17 @@ function AddressesScreen() {
             ))}
 
             <TouchableOpacity
-              className="bg-primary rounded-2xl py-4 items-center mt-2"
+              className="overflow-hidden rounded-2xl mt-2"
               activeOpacity={0.8}
               onPress={handleAddAddress}
             >
-              <View className="flex-row items-center">
-                <Ionicons name="add-circle-outline" size={24} color="#121212" />
-                <Text className="text-background font-bold text-base ml-2">Add New Address</Text>
-              </View>
+              <LinearGradient
+                colors={["#22C55E", "#15803D"]}
+                className="py-4 flex-row items-center justify-center"
+              >
+                <Ionicons name="add-circle-outline" size={22} color="#FFFFFF" />
+                <Text className="text-white font-bold text-base ml-2">Tambah Alamat Baru</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -191,36 +229,56 @@ function AddressesScreen() {
         onSave={handleSaveAddress}
         onFormChange={setAddressForm}
       />
-    </SafeScreen>
+    </View>
   );
 }
 export default AddressesScreen;
 
 function ErrorUI() {
   return (
-    <SafeScreen>
-      <AddressesHeader />
+    <View className="flex-1 bg-gray-50">
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-xl mr-3">
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-2xl font-bold">Alamat Saya</Text>
+        </View>
+      </LinearGradient>
       <View className="flex-1 items-center justify-center px-6">
-        <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
-        <Text className="text-text-primary font-semibold text-xl mt-4">
-          Failed to load addresses
-        </Text>
-        <Text className="text-text-secondary text-center mt-2">
-          Please check your connection and try again
+        <View className="bg-red-50 p-6 rounded-full mb-4">
+          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        </View>
+        <Text className="text-gray-800 font-bold text-xl">Gagal Memuat</Text>
+        <Text className="text-gray-500 text-center mt-2">
+          Periksa koneksi internet Anda
         </Text>
       </View>
-    </SafeScreen>
+    </View>
   );
 }
 
 function LoadingUI() {
   return (
-    <SafeScreen>
-      <AddressesHeader />
-      <View className="flex-1 items-center justify-center px-6">
-        <ActivityIndicator size="large" color="#00D9FF" />
-        <Text className="text-text-secondary mt-4">Loading addresses...</Text>
+    <View className="flex-1 bg-gray-50">
+      <LinearGradient
+        colors={["#22C55E", "#16A34A"]}
+        style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+      >
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="bg-white/20 p-2 rounded-xl mr-3">
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text className="text-white text-2xl font-bold">Alamat Saya</Text>
+        </View>
+      </LinearGradient>
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#22C55E" />
+        <Text className="text-gray-500 mt-4">Memuat alamat...</Text>
       </View>
-    </SafeScreen>
+    </View>
   );
 }
