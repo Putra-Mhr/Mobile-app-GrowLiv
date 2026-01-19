@@ -69,6 +69,21 @@ const Toast = ({ toast, onHide }: { toast: ToastData; onHide: (id: string) => vo
     const opacity = useRef(new Animated.Value(0)).current;
     const scale = useRef(new Animated.Value(0.9)).current;
 
+    const hideWithAnimation = useCallback(() => {
+        Animated.parallel([
+            Animated.timing(translateY, {
+                toValue: 100,
+                duration: 250,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start(() => onHide(toast.id));
+    }, [translateY, opacity, onHide, toast.id]);
+
     useEffect(() => {
         // Entry animation
         Animated.parallel([
@@ -97,22 +112,7 @@ const Toast = ({ toast, onHide }: { toast: ToastData; onHide: (id: string) => vo
         }, toast.duration || 3000);
 
         return () => clearTimeout(timer);
-    }, []);
-
-    const hideWithAnimation = () => {
-        Animated.parallel([
-            Animated.timing(translateY, {
-                toValue: 100,
-                duration: 250,
-                useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: true,
-            }),
-        ]).start(() => onHide(toast.id));
-    };
+    }, [translateY, opacity, scale, toast.duration, hideWithAnimation]);
 
     const getBorderColor = () => {
         const colorMap: Record<ToastType, string> = {
@@ -124,14 +124,14 @@ const Toast = ({ toast, onHide }: { toast: ToastData; onHide: (id: string) => vo
         return colorMap[toast.type];
     };
 
-    const getGradientColors = () => {
-        const gradientMap: Record<ToastType, string> = {
-            success: 'rgba(16, 185, 129, 0.15)',
-            error: 'rgba(239, 68, 68, 0.15)',
-            warning: 'rgba(245, 158, 11, 0.15)',
-            info: 'rgba(59, 130, 246, 0.15)',
+    const getBackgroundColor = () => {
+        const bgMap: Record<ToastType, string> = {
+            success: '#F0FDF4',
+            error: '#FEF2F2',
+            warning: '#FFFBEB',
+            info: '#EFF6FF',
         };
-        return gradientMap[toast.type];
+        return bgMap[toast.type];
     };
 
     return (
@@ -142,12 +142,12 @@ const Toast = ({ toast, onHide }: { toast: ToastData; onHide: (id: string) => vo
                     transform: [{ translateY }, { scale }],
                     opacity,
                     borderLeftColor: getBorderColor(),
-                    backgroundColor: getGradientColors(),
+                    backgroundColor: getBackgroundColor(),
                 },
             ]}
         >
             <View style={styles.toastContent}>
-                <View style={styles.toastIconContainer}>
+                <View style={[styles.toastIconContainer, { backgroundColor: `${getBorderColor()}15` }]}>
                     <ToastIcon type={toast.type} />
                 </View>
                 <View style={styles.toastTextContainer}>
@@ -155,11 +155,11 @@ const Toast = ({ toast, onHide }: { toast: ToastData; onHide: (id: string) => vo
                     {toast.message && <Text style={styles.toastMessage}>{toast.message}</Text>}
                 </View>
                 <TouchableOpacity onPress={hideWithAnimation} style={styles.toastCloseButton}>
-                    <Ionicons name="close" size={20} color="#9CA3AF" />
+                    <Ionicons name="close" size={20} color="#6B7280" />
                 </TouchableOpacity>
             </View>
 
-            {/* Decorative elements */}
+            {/* Decorative bottom bar */}
             <View style={[styles.toastDecoration, { backgroundColor: getBorderColor() }]} />
         </Animated.View>
     );
@@ -197,7 +197,7 @@ const ConfirmationModal = ({
             scaleAnim.setValue(0.8);
             opacityAnim.setValue(0);
         }
-    }, [visible]);
+    }, [visible, scaleAnim, opacityAnim]);
 
     if (!options) return null;
 
@@ -206,19 +206,19 @@ const ConfirmationModal = ({
             warning: {
                 iconName: 'warning' as keyof typeof Ionicons.glyphMap,
                 iconColor: '#F59E0B',
-                iconBg: 'rgba(245, 158, 11, 0.15)',
+                iconBg: '#FEF3C7',
                 confirmBg: '#F59E0B',
             },
             danger: {
                 iconName: 'trash' as keyof typeof Ionicons.glyphMap,
                 iconColor: '#EF4444',
-                iconBg: 'rgba(239, 68, 68, 0.15)',
+                iconBg: '#FEE2E2',
                 confirmBg: '#EF4444',
             },
             info: {
                 iconName: 'information-circle' as keyof typeof Ionicons.glyphMap,
                 iconColor: '#3B82F6',
-                iconBg: 'rgba(59, 130, 246, 0.15)',
+                iconBg: '#DBEAFE',
                 confirmBg: '#3B82F6',
             },
         };
@@ -240,7 +240,7 @@ const ConfirmationModal = ({
     return (
         <Modal transparent visible={visible} animationType="none" statusBarTranslucent>
             <Animated.View style={[styles.modalBackdrop, { opacity: opacityAnim }]}>
-                <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="dark" />
+                <BlurView intensity={20} style={StyleSheet.absoluteFill} tint="light" />
                 <Animated.View
                     style={[
                         styles.modalContainer,
@@ -258,13 +258,6 @@ const ConfirmationModal = ({
                     {/* Content */}
                     <Text style={styles.modalTitle}>{options.title}</Text>
                     <Text style={styles.modalMessage}>{options.message}</Text>
-
-                    {/* Decorative sparkles */}
-                    <View style={styles.sparkleContainer}>
-                        <View style={[styles.sparkle, styles.sparkle1]} />
-                        <View style={[styles.sparkle, styles.sparkle2]} />
-                        <View style={[styles.sparkle, styles.sparkle3]} />
-                    </View>
 
                     {/* Buttons */}
                     <View style={styles.modalButtonContainer}>
@@ -321,7 +314,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         <NotificationContext.Provider value={{ showToast, hideToast, showConfirmation }}>
             {children}
 
-            {/* Toast Container */}
+            {/* Toast Container - positioned closer to bottom navbar */}
             <View style={styles.toastWrapper} pointerEvents="box-none">
                 {toasts.map((toast) => (
                     <Toast key={toast.id} toast={toast} onHide={hideToast} />
@@ -340,10 +333,10 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
 
 // ============ STYLES ============
 const styles = StyleSheet.create({
-    // Toast styles
+    // Toast styles - UPDATED FOR LIGHT THEME
     toastWrapper: {
         position: 'absolute',
-        bottom: 140,
+        bottom: 100, // Closer to bottom navbar
         left: 0,
         right: 0,
         zIndex: 9999,
@@ -352,16 +345,18 @@ const styles = StyleSheet.create({
     },
     toastContainer: {
         width: width - 32,
-        backgroundColor: 'rgba(30, 30, 35, 0.95)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 16,
         marginBottom: 8,
         overflow: 'hidden',
         borderLeftWidth: 4,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 12,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
     },
     toastContent: {
         flexDirection: 'row',
@@ -372,7 +367,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 12,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -381,13 +375,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     toastTitle: {
-        color: '#FFFFFF',
+        color: '#1F2937',
         fontSize: 16,
         fontWeight: '700',
         marginBottom: 2,
     },
     toastMessage: {
-        color: '#9CA3AF',
+        color: '#6B7280',
         fontSize: 14,
     },
     toastCloseButton: {
@@ -398,24 +392,29 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        height: 2,
-        opacity: 0.3,
+        height: 3,
+        opacity: 0.6,
     },
 
-    // Modal styles
+    // Modal styles - UPDATED FOR LIGHT THEME
     modalBackdrop: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
     },
     modalContainer: {
         width: width - 48,
-        backgroundColor: '#1E1E23',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 24,
         alignItems: 'center',
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 24,
+        elevation: 12,
     },
     modalTopBar: {
         position: 'absolute',
@@ -434,14 +433,14 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     modalTitle: {
-        color: '#FFFFFF',
+        color: '#1F2937',
         fontSize: 22,
         fontWeight: '700',
         textAlign: 'center',
         marginBottom: 12,
     },
     modalMessage: {
-        color: '#9CA3AF',
+        color: '#6B7280',
         fontSize: 16,
         textAlign: 'center',
         marginBottom: 28,
@@ -456,11 +455,11 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 16,
         borderRadius: 14,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backgroundColor: '#F3F4F6',
         alignItems: 'center',
     },
     modalCancelText: {
-        color: '#9CA3AF',
+        color: '#4B5563',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -474,34 +473,5 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '700',
-    },
-
-    // Decorative sparkles
-    sparkleContainer: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-    },
-    sparkle: {
-        position: 'absolute',
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    },
-    sparkle1: {
-        top: 30,
-        right: 30,
-    },
-    sparkle2: {
-        top: 50,
-        left: 25,
-    },
-    sparkle3: {
-        bottom: 80,
-        right: 45,
     },
 });

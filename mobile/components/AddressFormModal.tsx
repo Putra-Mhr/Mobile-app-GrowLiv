@@ -10,8 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import SafeScreen from "./SafeScreen";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface AddressFormData {
   label: string;
@@ -51,54 +51,71 @@ const AddressFormModal = ({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
-        <SafeScreen>
+        <View className="flex-1 bg-gray-50">
           {/* HEADER */}
-          <View className="px-6 py-5 border-b border-surface flex-row items-center justify-between">
-            <Text className="text-text-primary text-2xl font-bold">
-              {isEditing ? "Edit Address" : "Add New Address"}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          <LinearGradient
+            colors={["#22C55E", "#16A34A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingTop: 50, paddingBottom: 20, paddingHorizontal: 20 }}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <TouchableOpacity onPress={onClose} className="bg-white/20 p-2 rounded-xl mr-3">
+                  <Ionicons name="close" size={22} color="#FFFFFF" />
+                </TouchableOpacity>
+                <View>
+                  <Text className="text-white text-xl font-bold">
+                    {isEditing ? "Edit Alamat" : "Tambah Alamat"}
+                  </Text>
+                  <Text className="text-white/70 text-sm">
+                    {isEditing ? "Perbarui detail alamat" : "Isi detail alamat baru"}
+                  </Text>
+                </View>
+              </View>
+              <View className="bg-white/20 p-2 rounded-xl">
+                <Ionicons name="location" size={22} color="#FFFFFF" />
+              </View>
+            </View>
+          </LinearGradient>
 
           <ScrollView
             className="flex-1"
             contentContainerStyle={{ paddingBottom: 50 }}
             showsVerticalScrollIndicator={false}
           >
-            <View className="p-6">
+            <View className="p-5">
               {/* LABEL INPUT */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">Label</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Label</Text>
                 <TextInput
-                  className="bg-surface text-text-primary p-4 rounded-2xl text-base"
-                  placeholder="e.g., Home, Work, Office"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 p-4 rounded-xl text-base"
+                  placeholder="contoh: Rumah, Kantor"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.label}
                   onChangeText={(text) => onFormChange({ ...addressForm, label: text })}
                 />
               </View>
 
               {/* NAME INPUT */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">Full Name</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Nama Lengkap</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="Masukkan nama lengkap"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.fullName}
                   onChangeText={(text) => onFormChange({ ...addressForm, fullName: text })}
                 />
               </View>
 
               {/* Address Input */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">Street Address</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Alamat Lengkap</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="Street address, apt/suite number"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="Nama jalan, nomor rumah, RT/RW"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.streetAddress}
                   onChangeText={(text) => onFormChange({ ...addressForm, streetAddress: text })}
                   multiline
@@ -106,36 +123,36 @@ const AddressFormModal = ({
               </View>
 
               {/* City Input */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">City</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Kota</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="e.g., New York"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="contoh: Jakarta Selatan"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.city}
                   onChangeText={(text) => onFormChange({ ...addressForm, city: text })}
                 />
               </View>
 
               {/* State Input */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">State</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Provinsi</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="e.g., NY"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="contoh: DKI Jakarta"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.state}
                   onChangeText={(text) => onFormChange({ ...addressForm, state: text })}
                 />
               </View>
 
               {/* ZIP Code Input */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">ZIP Code</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Kode Pos</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="e.g., 10001"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="contoh: 12345"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.zipCode}
                   onChangeText={(text) => onFormChange({ ...addressForm, zipCode: text })}
                   keyboardType="numeric"
@@ -143,12 +160,12 @@ const AddressFormModal = ({
               </View>
 
               {/* Phone Input */}
-              <View className="mb-5">
-                <Text className="text-text-primary font-semibold mb-2">Phone Number</Text>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">Nomor Telepon</Text>
                 <TextInput
-                  className="bg-surface text-text-primary px-4 py-4 rounded-2xl text-base"
-                  placeholder="+1 (555) 123-4567"
-                  placeholderTextColor="#666"
+                  className="bg-white border border-gray-200 text-gray-800 px-4 py-4 rounded-xl text-base"
+                  placeholder="+62 812 3456 7890"
+                  placeholderTextColor="#9CA3AF"
                   value={addressForm.phoneNumber}
                   onChangeText={(text) => onFormChange({ ...addressForm, phoneNumber: text })}
                   keyboardType="phone-pad"
@@ -156,33 +173,44 @@ const AddressFormModal = ({
               </View>
 
               {/* Default Address Toggle */}
-              <View className="bg-surface rounded-2xl p-4 flex-row items-center justify-between mb-6">
-                <Text className="text-text-primary font-semibold">Set as default address</Text>
+              <View className="bg-white border border-gray-200 rounded-xl p-4 flex-row items-center justify-between mb-6">
+                <View className="flex-row items-center">
+                  <View className="bg-green-100 p-2 rounded-lg mr-3">
+                    <Ionicons name="star" size={18} color="#22C55E" />
+                  </View>
+                  <Text className="text-gray-800 font-semibold">Jadikan alamat utama</Text>
+                </View>
                 <Switch
                   value={addressForm.isDefault}
                   onValueChange={(value) => onFormChange({ ...addressForm, isDefault: value })}
-                  thumbColor="white"
+                  thumbColor="#FFFFFF"
+                  trackColor={{ false: "#D1D5DB", true: "#22C55E" }}
                 />
               </View>
 
               {/* Save Button */}
               <TouchableOpacity
-                className="bg-primary rounded-2xl py-5 items-center"
+                className="overflow-hidden rounded-xl"
                 activeOpacity={0.8}
                 onPress={onSave}
                 disabled={isAddingAddress || isUpdatingAddress}
               >
-                {isAddingAddress || isUpdatingAddress ? (
-                  <ActivityIndicator size="small" color="#121212" />
-                ) : (
-                  <Text className="text-background font-bold text-lg">
-                    {isEditing ? "Save Changes" : "Add Address"}
-                  </Text>
-                )}
+                <LinearGradient
+                  colors={["#22C55E", "#15803D"]}
+                  className="py-4 items-center"
+                >
+                  {isAddingAddress || isUpdatingAddress ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text className="text-white font-bold text-lg">
+                      {isEditing ? "Simpan Perubahan" : "Tambah Alamat"}
+                    </Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </SafeScreen>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
