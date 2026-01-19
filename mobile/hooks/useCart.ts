@@ -13,10 +13,19 @@ const useCart = () => {
   } = useQuery({
     queryKey: ["cart"],
     queryFn: async () => {
-      const { data } = await api.get<{ cart: Cart }>("/cart");
-      return data.cart;
+      console.log("useCart: Fetching cart");
+      try {
+        const { data } = await api.get<{ cart: Cart }>("/cart");
+        console.log("useCart: API response:", data);
+        return data.cart;
+      } catch (error) {
+        console.error("useCart: API error:", error);
+        throw error;
+      }
     },
   });
+
+  console.log("useCart: cart =", cart, "isLoading =", isLoading, "isError =", isError);
 
   const addToCartMutation = useMutation({
     mutationFn: async ({ productId, quantity = 1 }: { productId: string; quantity?: number }) => {

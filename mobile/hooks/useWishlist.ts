@@ -13,10 +13,19 @@ const useWishlist = () => {
   } = useQuery({
     queryKey: ["wishlist"],
     queryFn: async () => {
-      const { data } = await api.get<{ wishlist: Product[] }>("/users/wishlist");
-      return data.wishlist;
+      console.log("useWishlist: Fetching wishlist");
+      try {
+        const { data } = await api.get<{ wishlist: Product[] }>("/users/wishlist");
+        console.log("useWishlist: API response:", data);
+        return data.wishlist;
+      } catch (error) {
+        console.error("useWishlist: API error:", error);
+        throw error;
+      }
     },
   });
+
+  console.log("useWishlist: wishlist =", wishlist, "isLoading =", isLoading, "isError =", isError);
 
   const addToWishlistMutation = useMutation({
     mutationFn: async (productId: string) => {

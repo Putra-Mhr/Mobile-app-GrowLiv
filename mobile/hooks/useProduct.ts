@@ -8,11 +8,20 @@ export const useProduct = (productId: string) => {
   const result = useQuery<Product>({
     queryKey: ["product", productId],
     queryFn: async () => {
-      const { data } = await api.get(`/products/${productId}`);
-      return data;
+      console.log("useProduct: Fetching product with ID:", productId);
+      try {
+        const { data } = await api.get(`/products/${productId}`);
+        console.log("useProduct: API response:", data);
+        return data;
+      } catch (error) {
+        console.error("useProduct: API error:", error);
+        throw error;
+      }
     },
     enabled: !!productId,
   });
+
+  console.log("useProduct: productId =", productId, "data =", result.data, "error =", result.error);
 
   return result;
 };
