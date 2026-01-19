@@ -24,26 +24,34 @@ const BANNERS = [
   {
     id: 1,
     title: "Panen Hari Ini",
-    subtitle: "Segar langsung dari kebun!",
-    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=200",
-    colors: ["#22C55E", "#15803D"] as [string, string],
+    subtitle: "Segar langsung dari kebun petani lokal!",
+    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&q=80",
+    colors: ["rgba(34, 197, 94, 0.85)", "rgba(21, 128, 61, 0.9)"] as [string, string],
     category: "Sayuran",
   },
   {
     id: 2,
     title: "Buah Segar",
-    subtitle: "Vitamin untuk keluarga",
-    image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=200",
-    colors: ["#F97316", "#EA580C"] as [string, string],
+    subtitle: "Vitamin alami untuk kesehatan keluarga",
+    image: "https://images.unsplash.com/photo-1619566636858-adf3ef46400b?w=800&q=80",
+    colors: ["rgba(249, 115, 22, 0.85)", "rgba(234, 88, 12, 0.9)"] as [string, string],
     category: "Buah",
   },
   {
     id: 3,
     title: "Herbal Alami",
-    subtitle: "Sehat dengan alam",
-    image: "https://images.unsplash.com/photo-1515023115689-589c33041d3c?w=200",
-    colors: ["#06B6D4", "#0891B2"] as [string, string],
+    subtitle: "Jaga kesehatan dengan tanaman herbal",
+    image: "https://images.unsplash.com/photo-1515023115689-589c33041d3c?w=800&q=80",
+    colors: ["rgba(6, 182, 212, 0.85)", "rgba(8, 145, 178, 0.9)"] as [string, string],
     category: "Herbal",
+  },
+  {
+    id: 4,
+    title: "Rempah Pilihan",
+    subtitle: "Bumbu dapur berkualitas tinggi",
+    image: "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=800&q=80",
+    colors: ["rgba(217, 119, 6, 0.85)", "rgba(180, 83, 9, 0.9)"] as [string, string],
+    category: "Rempah",
   },
 ];
 
@@ -67,31 +75,21 @@ const HomeScreen = () => {
   const { data: products, isLoading, isError } = useProducts();
   const { user } = useUser();
   const scrollRef = useRef<ScrollView>(null);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const timeGreeting = getTimeGreeting();
 
-  // Auto-scroll banner
+  // Auto-scroll carousel
   useEffect(() => {
     const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0.5,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      setCurrentBanner((prev) => (prev + 1) % BANNERS.length);
+      setCurrentBanner((prev) => {
+        const next = (prev + 1) % BANNERS.length;
+        scrollRef.current?.scrollTo({ x: next * width, animated: true });
+        return next;
+      });
     }, 4000);
 
     return () => clearInterval(interval);
-  }, [fadeAnim]);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
@@ -191,60 +189,82 @@ const HomeScreen = () => {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Animated Banner Carousel */}
-        <View className="px-5 py-4">
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <LinearGradient
-              colors={currentBannerData.colors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                borderRadius: 20,
-                padding: 20,
-                overflow: "hidden",
-              }}
-            >
-              <View className="flex-row items-center">
-                <View className="flex-1">
-                  <View className="flex-row items-center mb-1">
-                    <Ionicons name="leaf" size={16} color="rgba(255,255,255,0.8)" />
-                    <Text className="text-white/80 text-xs ml-1 uppercase tracking-wider">
-                      Promo Spesial
-                    </Text>
-                  </View>
-                  <Text className="text-white text-2xl font-bold mb-1">
-                    {currentBannerData.title}
-                  </Text>
-                  <Text className="text-white/80 text-sm mb-4">
-                    {currentBannerData.subtitle}
-                  </Text>
-                  <TouchableOpacity
-                    className="bg-white/20 self-start px-4 py-2 rounded-full flex-row items-center"
-                    onPress={() => setSelectedCategory(currentBannerData.category)}
-                  >
-                    <Text className="text-white font-semibold">Lihat Detail</Text>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
-                  </TouchableOpacity>
-                </View>
-                <Image
-                  source={{ uri: currentBannerData.image }}
-                  style={{ width: 120, height: 100, borderRadius: 12 }}
-                  resizeMode="cover"
-                />
-              </View>
-
-              {/* Banner Indicators */}
-              <View className="flex-row justify-center mt-4 gap-2">
-                {BANNERS.map((_, index) => (
-                  <View
-                    key={index}
-                    className={`h-2 rounded-full ${index === currentBanner ? "bg-white w-6" : "bg-white/40 w-2"
-                      }`}
+        {/* Full-Width Image Carousel */}
+        <View style={{ marginTop: 16, paddingBottom: 8 }}>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / width);
+              setCurrentBanner(index);
+            }}
+            scrollEventThrottle={16}
+            decelerationRate="fast"
+          >
+            {BANNERS.map((banner) => (
+              <TouchableOpacity
+                key={banner.id}
+                activeOpacity={0.95}
+                onPress={() => setSelectedCategory(banner.category)}
+                style={{ width: width, paddingHorizontal: 20 }}
+              >
+                <View style={{ height: 180, borderRadius: 20, overflow: "hidden" }}>
+                  {/* Background Image */}
+                  <Image
+                    source={{ uri: banner.image }}
+                    style={{ position: "absolute", width: "100%", height: "100%" }}
+                    resizeMode="cover"
                   />
-                ))}
-              </View>
-            </LinearGradient>
-          </Animated.View>
+                  {/* Gradient Overlay */}
+                  <LinearGradient
+                    colors={banner.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ flex: 1, padding: 20, justifyContent: "flex-end" }}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <Ionicons name="leaf" size={14} color="rgba(255,255,255,0.9)" />
+                      <Text className="text-white/90 text-xs ml-1 uppercase tracking-wider font-medium">
+                        Promo Spesial
+                      </Text>
+                    </View>
+                    <Text className="text-white text-2xl font-bold mb-1">
+                      {banner.title}
+                    </Text>
+                    <Text className="text-white/90 text-sm mb-3">
+                      {banner.subtitle}
+                    </Text>
+                    <View className="flex-row items-center">
+                      <View className="bg-white/25 px-4 py-2 rounded-full flex-row items-center">
+                        <Text className="text-white font-semibold">Belanja Sekarang</Text>
+                        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Carousel Indicators */}
+          <View className="flex-row justify-center mt-3 gap-2">
+            {BANNERS.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => {
+                  scrollRef.current?.scrollTo({ x: index * width, animated: true });
+                  setCurrentBanner(index);
+                }}
+              >
+                <View
+                  className={`h-2 rounded-full ${index === currentBanner ? "bg-green-500 w-6" : "bg-gray-300 w-2"
+                    }`}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* Categories Section */}

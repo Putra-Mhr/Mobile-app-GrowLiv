@@ -15,7 +15,7 @@ const reviewSchema = new mongoose.Schema(
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
-      required: true,
+      required: false, // Made optional for direct product reviews
     },
     rating: {
       type: Number,
@@ -23,8 +23,16 @@ const reviewSchema = new mongoose.Schema(
       min: 1,
       max: 5,
     },
+    comment: {
+      type: String,
+      required: false,
+      maxlength: 1000,
+    },
   },
   { timestamps: true }
 );
+
+// Compound index to ensure one review per user per product
+reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
 
 export const Review = mongoose.model("Review", reviewSchema);
