@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import OrderSummary from "@/components/OrderSummary";
 import AddressSelectionModal from "@/components/AddressSelectionModal";
+import { MidtransPayment } from "@/components/MidtransPayment";
 import { useNotification } from "@/context/NotificationContext";
 
 import * as Sentry from "@sentry/react-native";
@@ -32,10 +33,12 @@ const CartScreen = () => {
   const { addresses } = useAddresses();
   const { showToast, showConfirmation } = useNotification();
 
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  /* const { initPaymentSheet, presentPaymentSheet } = useStripe(); */
 
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [midtransVisible, setMidtransVisible] = useState(false);
+  const [midtransUrl, setMidtransUrl] = useState<string | null>(null);
 
   const cartItems = cart?.items || [];
   const subtotal = cartTotal;
@@ -92,8 +95,8 @@ const CartScreen = () => {
     try {
       setPaymentLoading(true);
 
-      // create payment intent with cart items and shipping address
-      const { data } = await api.post("/payment/create-intent", {
+      // create snap transaction
+      const { data } = await api.post("/payment/create-snap-transaction", {
         cartItems,
         shippingAddress: {
           fullName: selectedAddress.fullName,
@@ -105,45 +108,13 @@ const CartScreen = () => {
         },
       });
 
-      const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: data.clientSecret,
-        merchantDisplayName: "Your Store Name",
-      });
-
-      if (initError) {
-        Sentry.logger.error("Payment sheet init failed", {
-          errorCode: initError.code,
-          errorMessage: initError.message,
-          cartTotal: total,
-          itemCount: cartItems.length,
-        });
-
-        showToast('error', 'Payment Error', initError.message);
-        setPaymentLoading(false);
-        return;
-      }
-
-      // present payment sheet
-      const { error: presentError } = await presentPaymentSheet();
-
-      if (presentError) {
-        Sentry.logger.error("Payment cancelled", {
-          errorCode: presentError.code,
-          errorMessage: presentError.message,
-          cartTotal: total,
-          itemCount: cartItems.length,
-        });
-
-        showToast('warning', 'Payment Cancelled', presentError.message);
+      if (data.redirect_url) {
+        setMidtransUrl(data.redirect_url);
+        setMidtransVisible(true);
       } else {
-        Sentry.logger.info("Payment successful", {
-          total: total.toFixed(2),
-          itemCount: cartItems.length,
-        });
-
-        showToast('success', 'Payment Successful! 🎉', 'Your order is being processed');
-        clearCart();
+        showToast('error', 'Payment Error', 'Failed to get payment URL');
       }
+
     } catch (error) {
       Sentry.logger.error("Payment failed", {
         error: error instanceof Error ? error.message : "Unknown error",
@@ -155,6 +126,24 @@ const CartScreen = () => {
     } finally {
       setPaymentLoading(false);
     }
+  };
+
+  const handleMidtransSuccess = (orderId: string) => {
+    setMidtransVisible(false);
+    showToast('success', 'Payment Successful! 🎉', 'Your order is being processed');
+    clearCart();
+    // Navigate to order details or success page? For now just clear cart
+  };
+
+  const handleMidtransPending = (orderId: string) => {
+    setMidtransVisible(false);
+    showToast('info', 'Payment Pending', 'Please complete your payment.');
+    clearCart(); // Optional: clear cart or keep it? Usually clear if order created.
+  };
+
+  const handleMidtransError = () => {
+    setMidtransVisible(false);
+    showToast('error', 'Payment Cancelled', 'You cancelled the payment.');
   };
 
   if (isLoading) return <LoadingUI />;
@@ -189,7 +178,7 @@ const CartScreen = () => {
                 {/* product image */}
                 <View className="relative">
                   <Image
-                    source={item.product.images[0]}
+                    source={item.product?.images?.[0] || { uri: "https://via.placeholder.com/100" }}
                     className="bg-gray-100"
                     contentFit="cover"
                     style={{ width: 100, height: 100, borderRadius: 16 }}
@@ -205,11 +194,11 @@ const CartScreen = () => {
                       className="text-gray-800 font-bold text-lg leading-tight"
                       numberOfLines={2}
                     >
-                      {item.product.name}
+                      {item.product?.name || "Unknown Product"}
                     </Text>
                     <View className="flex-row items-center mt-2">
                       <Text className="text-green-600 font-bold text-xl">
-                        Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
+                        {item.product?.price ? `Rp ${(item.product.price * item.quantity).toLocaleString("id-ID")}` : "Unavailable"}
                       </Text>
                     </View>
                   </View>
@@ -303,6 +292,15 @@ const CartScreen = () => {
         onClose={() => setAddressModalVisible(false)}
         onProceed={handleProceedWithPayment}
         isProcessing={paymentLoading}
+      />
+
+      <MidtransPayment
+        isVisible={midtransVisible}
+        paymentUrl={midtransUrl}
+        onClose={() => setMidtransVisible(false)}
+        onSuccess={handleMidtransSuccess}
+        onPending={handleMidtransPending}
+        onError={handleMidtransError}
       />
     </View>
   );

@@ -48,12 +48,13 @@ export async function createProduct(req, res) {
 export async function getAllProducts(req, res) {
   console.log("getAllProducts called, user:", req.user?.name || "No user");
   try {
+    console.log("About to query Product.find()");
     // -1 means in desc order: most recent products first
     const products = await Product.find().sort({ createdAt: -1 });
-    console.log("Found products:", products.length);
+    console.log("Query successful, found products:", products.length);
     res.status(200).json(products);
   } catch (error) {
-    console.error("Error fetching products:", error);
+    console.error("Error fetching products:", error.message, error.stack);
     res.status(500).json({ message: "Internal server error" });
   }
 }
