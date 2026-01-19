@@ -51,7 +51,7 @@ const useCart = () => {
   });
 
   const cartTotal =
-    cart?.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0) ?? 0;
+    cart?.items.reduce((sum, item) => sum + (item.product?.price ?? 0) * item.quantity, 0) ?? 0;
 
   const cartItemCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
 

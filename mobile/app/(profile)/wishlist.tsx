@@ -96,7 +96,7 @@ function WishlistScreen() {
                       {item.name}
                     </Text>
                     <Text className="text-primary font-bold text-xl mb-2">
-                      Rp {item.price.toLocaleString("id-ID")}
+                      {item.price ? `Rp ${item.price.toLocaleString("id-ID")}` : "Unavailable"}
                     </Text>
 
                     {item.stock > 0 ? (

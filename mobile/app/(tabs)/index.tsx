@@ -10,13 +10,13 @@ const { width } = Dimensions.get("window");
 
 const CATEGORIES = [
   { name: "All", label: "Semua", icon: "grid", color: "#22C55E", bgColor: "#DCFCE7" },
-  { name: "Vegetable", label: "Sayuran", icon: "leaf", color: "#16A34A", bgColor: "#DCFCE7" },
-  { name: "Fruit", label: "Buah", icon: "nutrition", color: "#EF4444", bgColor: "#FEE2E2" },
+  { name: "Sayuran", label: "Sayuran", icon: "leaf", color: "#16A34A", bgColor: "#DCFCE7" },
+  { name: "Buah", label: "Buah", icon: "nutrition", color: "#EF4444", bgColor: "#FEE2E2" },
   { name: "Herbal", label: "Herbal", icon: "flower", color: "#06B6D4", bgColor: "#CFFAFE" },
-  { name: "Spice", label: "Rempah", icon: "flask", color: "#D97706", bgColor: "#FEF3C7" },
-  { name: "Animal", label: "Hewani", icon: "egg", color: "#F59E0B", bgColor: "#FFF7ED" },
-  { name: "Fishery", label: "Perikanan", icon: "fish", color: "#3B82F6", bgColor: "#DBEAFE" },
-  { name: "Processed", label: "Olahan", icon: "basket", color: "#8B5CF6", bgColor: "#EDE9FE" },
+  { name: "Rempah", label: "Rempah", icon: "flask", color: "#D97706", bgColor: "#FEF3C7" },
+  { name: "Produk Hewani", label: "Hewani", icon: "egg", color: "#F59E0B", bgColor: "#FFF7ED" },
+  { name: "Perikanan", label: "Perikanan", icon: "fish", color: "#3B82F6", bgColor: "#DBEAFE" },
+  { name: "Produk Olahan", label: "Olahan", icon: "basket", color: "#8B5CF6", bgColor: "#EDE9FE" },
 ];
 
 const HomeScreen = () => {
@@ -112,7 +112,7 @@ const HomeScreen = () => {
                 <Text className="text-white/80 text-sm mb-4">Segar langsung dari kebun!</Text>
                 <TouchableOpacity
                   className="flex-row items-center"
-                  onPress={() => setSelectedCategory("Vegetable")}
+                  onPress={() => setSelectedCategory("Sayuran")}
                 >
                   <Text className="text-white font-semibold underline">Lihat Detail</Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />

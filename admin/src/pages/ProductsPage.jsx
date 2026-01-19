@@ -70,8 +70,8 @@ function ProductsPage() {
     setFormData({
       name: product.name,
       category: product.category,
-      price: product.price.toString(),
-      stock: product.stock.toString(),
+      price: product.price?.toString() || "",
+      stock: product.stock?.toString() || "",
       description: product.description,
     });
     setImagePreviews(product.images);
@@ -157,7 +157,7 @@ function ProductsPage() {
                       <div>
                         <p className="text-xs text-base-content/70">Price</p>
                         <p className="font-bold text-lg">
-                          Rp {product.price.toLocaleString("id-ID")}
+                          Rp {product.price?.toLocaleString("id-ID") ?? "0"}
                         </p>
                       </div>
                       <div>
@@ -236,10 +236,13 @@ function ProductsPage() {
                   required
                 >
                   <option value="">Select category</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Accessories">Accessories</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="Sports">Sports</option>
+                  <option value="Sayuran">Sayuran</option>
+                  <option value="Buah">Buah</option>
+                  <option value="Herbal">Herbal</option>
+                  <option value="Rempah">Rempah</option>
+                  <option value="Produk Hewani">Produk Hewani</option>
+                  <option value="Perikanan">Perikanan</option>
+                  <option value="Produk Olahan">Produk Olahan</option>
                 </select>
               </div>
             </div>

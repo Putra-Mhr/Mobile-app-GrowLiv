@@ -41,6 +41,8 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
   };
 
   const renderProduct = ({ item: product, index }: { item: Product; index: number }) => {
+    if (!product || !product.price) return null; // Skip invalid products
+
     // Alternate background colors
     const bgColor = index % 2 === 0 ? "#FEF9C3" : "#DCFCE7";
 
@@ -186,4 +188,5 @@ function NoProductsFound() {
     </View>
   );
 }
+
 

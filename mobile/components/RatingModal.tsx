@@ -57,9 +57,8 @@ const RatingModal = ({
                   return (
                     <View
                       key={item._id}
-                      className={`bg-background-lighter rounded-2xl p-4 ${
-                        index < order.orderItems.length - 1 ? "mb-3" : ""
-                      }`}
+                      className={`bg-background-lighter rounded-2xl p-4 ${index < order.orderItems.length - 1 ? "mb-3" : ""
+                        }`}
                     >
                       <View className="flex-row items-center mb-3">
                         <Image
@@ -74,7 +73,7 @@ const RatingModal = ({
                             {item.name}
                           </Text>
                           <Text className="text-text-secondary text-xs mt-1">
-                            Qty: {item.quantity} • ${item.price.toFixed(2)}
+                            Qty: {item.quantity} • ${item.price?.toFixed(2) ?? "0.00"}
                           </Text>
                         </View>
                       </View>
