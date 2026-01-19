@@ -1,7 +1,8 @@
-import SafeScreen from "@/components/SafeScreen";
 import useCart from "@/hooks/useCart";
 import { useProduct } from "@/hooks/useProduct";
+import { useProductReviews } from "@/hooks/useProductReviews";
 import useWishlist from "@/hooks/useWishlist";
+import { Review, ReviewUser } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,10 +21,58 @@ import { useNotification } from "@/context/NotificationContext";
 
 const { width } = Dimensions.get("window");
 
+// Helper function to render stars
+const RenderStars = ({ rating, size = 16 }: { rating: number; size?: number }) => {
+  return (
+    <View className="flex-row">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Ionicons
+          key={star}
+          name={star <= rating ? "star" : star - 0.5 <= rating ? "star-half" : "star-outline"}
+          size={size}
+          color="#F59E0B"
+        />
+      ))}
+    </View>
+  );
+};
+
+// Review Card Component
+const ReviewCard = ({ review }: { review: Review }) => {
+  const user = typeof review.userId === "object" ? review.userId as ReviewUser : null;
+  const date = new Date(review.createdAt).toLocaleDateString("id-ID", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <View className="bg-white rounded-2xl p-4 mb-3 border border-gray-100">
+      <View className="flex-row items-center mb-3">
+        <View className="w-10 h-10 rounded-full bg-green-100 items-center justify-center mr-3">
+          {user?.imageUrl ? (
+            <Image source={{ uri: user.imageUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+          ) : (
+            <Ionicons name="person" size={20} color="#22C55E" />
+          )}
+        </View>
+        <View className="flex-1">
+          <Text className="text-gray-800 font-bold">{user?.name || "Pengguna"}</Text>
+          <Text className="text-gray-400 text-xs">{date}</Text>
+        </View>
+        <RenderStars rating={review.rating} size={14} />
+      </View>
+      {review.comment && (
+        <Text className="text-gray-600 leading-5">{review.comment}</Text>
+      )}
+    </View>
+  );
+};
+
 const ProductDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
-  console.log("ProductDetailScreen: Received id =", id);
   const { data: product, isError, isLoading } = useProduct(id);
+  const { reviews, reviewStats, createReview, isCreatingReview } = useProductReviews(id || "");
   const { addToCart, isAddingToCart } = useCart();
   const { showToast } = useNotification();
 
@@ -34,40 +83,46 @@ const ProductDetailScreen = () => {
   const [quantity, setQuantity] = useState(1);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const handleAddToCart = () => {
     if (!product) return;
     addToCart(
       { productId: product._id, quantity },
       {
-        onSuccess: () => showToast('success', 'Added to Cart!', `${product.name} has been added to your cart`),
+        onSuccess: () => showToast('success', 'Ditambahkan!', `${product.name} ditambahkan ke keranjang`),
         onError: (error: any) => {
-          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Could not add item to cart');
+          showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambahkan ke keranjang');
         },
       }
     );
   };
 
-  const handleSubmitReview = async () => {
+  const handleSubmitReview = () => {
     if (reviewRating === 0) {
-      showToast('warning', 'Rating Required', 'Please select a star rating');
+      showToast('warning', 'Rating Diperlukan', 'Silakan pilih rating bintang');
       return;
     }
-    setIsSubmittingReview(true);
-    // Simulating review submission - in production, connect to backend
-    setTimeout(() => {
-      setIsSubmittingReview(false);
-      showToast('success', 'Review Submitted!', 'Thank you for your feedback');
-      setReviewRating(0);
-      setReviewComment("");
-    }, 1000);
+    createReview(
+      { productId: id || "", rating: reviewRating, comment: reviewComment },
+      {
+        onSuccess: () => {
+          showToast('success', 'Review Terkirim!', 'Terima kasih atas feedback Anda');
+          setReviewRating(0);
+          setReviewComment("");
+        },
+        onError: () => {
+          showToast('error', 'Gagal', 'Tidak dapat mengirim review');
+        },
+      }
+    );
   };
 
   if (isLoading) return <LoadingUI />;
   if (isError || !product) return <ErrorUI />;
 
   const inStock = product.stock > 0;
+  const displayRating = reviewStats.totalReviews > 0 ? reviewStats.averageRating : product.averageRating;
+  const displayTotalReviews = reviewStats.totalReviews > 0 ? reviewStats.totalReviews : product.totalReviews;
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -147,26 +202,26 @@ const ProductDetailScreen = () => {
           {/* Product Name */}
           <Text className="text-gray-800 text-2xl font-bold mb-3">{product.name}</Text>
 
-          {/* Rating & Reviews */}
+          {/* Rating & Reviews Summary */}
           <View className="flex-row items-center mb-4">
             <View className="flex-row items-center bg-amber-50 px-3 py-2 rounded-full">
               <Ionicons name="star" size={16} color="#F59E0B" />
               <Text className="text-gray-800 font-bold ml-1 mr-2">
-                {product.averageRating.toFixed(1)}
+                {displayRating.toFixed(1)}
               </Text>
-              <Text className="text-gray-500 text-sm">({product.totalReviews} reviews)</Text>
+              <Text className="text-gray-500 text-sm">({displayTotalReviews} review)</Text>
             </View>
             {inStock ? (
               <View className="ml-3 flex-row items-center">
                 <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
                 <Text className="text-green-600 font-semibold text-sm">
-                  {product.stock} in stock
+                  {product.stock} stok
                 </Text>
               </View>
             ) : (
               <View className="ml-3 flex-row items-center">
                 <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
-                <Text className="text-red-500 font-semibold text-sm">Out of Stock</Text>
+                <Text className="text-red-500 font-semibold text-sm">Stok Habis</Text>
               </View>
             )}
           </View>
@@ -180,8 +235,7 @@ const ProductDetailScreen = () => {
 
           {/* Quantity */}
           <View className="mb-6">
-            <Text className="text-gray-800 text-lg font-bold mb-3">Quantity</Text>
-
+            <Text className="text-gray-800 text-lg font-bold mb-3">Jumlah</Text>
             <View className="flex-row items-center">
               <TouchableOpacity
                 className="bg-gray-100 rounded-full w-12 h-12 items-center justify-center"
@@ -207,25 +261,55 @@ const ProductDetailScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-
-            {quantity >= product.stock && inStock && (
-              <Text className="text-orange-500 text-sm mt-2">Maximum stock reached</Text>
-            )}
           </View>
 
           {/* Description */}
           <View className="mb-8">
-            <Text className="text-gray-800 text-lg font-bold mb-3">Description</Text>
+            <Text className="text-gray-800 text-lg font-bold mb-3">Deskripsi</Text>
             <Text className="text-gray-600 text-base leading-6">{product.description}</Text>
           </View>
 
-          {/* Review Section */}
-          <View className="bg-gray-50 rounded-2xl p-4 mb-4">
-            <Text className="text-gray-800 text-lg font-bold mb-4">Write a Review</Text>
-
-            {/* Star Rating */}
+          {/* Rating Distribution */}
+          <View className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 mb-6">
             <View className="flex-row items-center mb-4">
-              <Text className="text-gray-600 mr-3">Your Rating:</Text>
+              <Ionicons name="star" size={20} color="#F59E0B" />
+              <Text className="text-gray-800 text-lg font-bold ml-2">Rating & Review</Text>
+            </View>
+
+            <View className="flex-row">
+              {/* Left - Big Rating */}
+              <View className="items-center mr-6">
+                <Text className="text-4xl font-bold text-gray-800">{displayRating.toFixed(1)}</Text>
+                <RenderStars rating={displayRating} size={18} />
+                <Text className="text-gray-500 text-sm mt-1">{displayTotalReviews} review</Text>
+              </View>
+
+              {/* Right - Distribution Bars */}
+              <View className="flex-1">
+                {reviewStats.ratingDistribution.map(({ star, count, percentage }) => (
+                  <View key={star} className="flex-row items-center mb-1">
+                    <Text className="text-gray-600 text-xs w-4">{star}</Text>
+                    <Ionicons name="star" size={10} color="#F59E0B" />
+                    <View className="flex-1 h-2 bg-gray-200 rounded-full mx-2">
+                      <View
+                        className="h-2 bg-amber-400 rounded-full"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </View>
+                    <Text className="text-gray-500 text-xs w-6">{count}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Write Review Section */}
+          <View className="bg-gray-50 rounded-2xl p-4 mb-6">
+            <Text className="text-gray-800 text-lg font-bold mb-4">Tulis Review</Text>
+
+            {/* Star Rating Input */}
+            <View className="flex-row items-center mb-4">
+              <Text className="text-gray-600 mr-3">Rating Anda:</Text>
               <View className="flex-row gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <TouchableOpacity
@@ -235,7 +319,7 @@ const ProductDetailScreen = () => {
                   >
                     <Ionicons
                       name={star <= reviewRating ? "star" : "star-outline"}
-                      size={28}
+                      size={32}
                       color={star <= reviewRating ? "#F59E0B" : "#D1D5DB"}
                     />
                   </TouchableOpacity>
@@ -246,7 +330,7 @@ const ProductDetailScreen = () => {
             {/* Comment Input */}
             <TextInput
               className="bg-white border border-gray-200 rounded-xl p-4 text-gray-800 min-h-24"
-              placeholder="Share your experience with this product..."
+              placeholder="Bagikan pengalaman Anda dengan produk ini..."
               placeholderTextColor="#9CA3AF"
               multiline
               textAlignVertical="top"
@@ -258,16 +342,39 @@ const ProductDetailScreen = () => {
             <TouchableOpacity
               className="mt-4 bg-green-500 rounded-xl py-3 items-center"
               onPress={handleSubmitReview}
-              disabled={isSubmittingReview}
+              disabled={isCreatingReview}
               activeOpacity={0.8}
             >
-              {isSubmittingReview ? (
+              {isCreatingReview ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text className="text-white font-bold">Submit Review</Text>
+                <View className="flex-row items-center">
+                  <Ionicons name="send" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-bold ml-2">Kirim Review</Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>
+
+          {/* User Reviews List */}
+          {reviews.length > 0 && (
+            <View>
+              <Text className="text-gray-800 text-lg font-bold mb-4">
+                Review dari Pengguna ({reviews.length})
+              </Text>
+              {reviews.map((review) => (
+                <ReviewCard key={review._id} review={review} />
+              ))}
+            </View>
+          )}
+
+          {reviews.length === 0 && (
+            <View className="items-center py-8">
+              <Ionicons name="chatbubble-outline" size={48} color="#D1D5DB" />
+              <Text className="text-gray-400 mt-2">Belum ada review</Text>
+              <Text className="text-gray-400 text-sm">Jadilah yang pertama memberikan review!</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -275,7 +382,7 @@ const ProductDetailScreen = () => {
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 pb-8">
         <View className="flex-row items-center gap-3">
           <View className="flex-1">
-            <Text className="text-gray-500 text-sm mb-1">Total Price</Text>
+            <Text className="text-gray-500 text-sm mb-1">Total Harga</Text>
             <Text className="text-green-600 text-2xl font-bold">
               Rp {(product.price * quantity).toLocaleString("id-ID")}
             </Text>
@@ -298,7 +405,7 @@ const ProductDetailScreen = () => {
                 <>
                   <Ionicons name="cart" size={24} color="#FFFFFF" />
                   <Text className="font-bold text-lg ml-2 text-white">
-                    {!inStock ? "Stok Habis" : "Tambah ke Keranjang"}
+                    {!inStock ? "Stok Habis" : "Tambah"}
                   </Text>
                 </>
               )}
@@ -319,15 +426,15 @@ function ErrorUI() {
         <View className="bg-red-50 p-6 rounded-full mb-4">
           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
         </View>
-        <Text className="text-gray-800 font-semibold text-xl mt-4">Product not found</Text>
+        <Text className="text-gray-800 font-semibold text-xl mt-4">Produk tidak ditemukan</Text>
         <Text className="text-gray-500 text-center mt-2">
-          This product may have been removed or doesn&apos;t exist
+          Produk ini mungkin sudah dihapus atau tidak ada
         </Text>
         <TouchableOpacity
           className="bg-green-500 rounded-2xl px-6 py-3 mt-6"
           onPress={() => router.back()}
         >
-          <Text className="text-white font-bold">Go Back</Text>
+          <Text className="text-white font-bold">Kembali</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -339,7 +446,7 @@ function LoadingUI() {
     <View className="flex-1 bg-gray-50">
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#22C55E" />
-        <Text className="text-gray-500 mt-4">Loading product...</Text>
+        <Text className="text-gray-500 mt-4">Memuat produk...</Text>
       </View>
     </View>
   );

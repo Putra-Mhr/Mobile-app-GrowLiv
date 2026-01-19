@@ -1,12 +1,24 @@
 import { Router } from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
-import { createReview, deleteReview } from "../controllers/review.controller.js";
+import {
+    createReview,
+    createProductReview,
+    getProductReviews,
+    deleteReview
+} from "../controllers/review.controller.js";
 
 const router = Router();
 
+// Get reviews for a product (public)
+router.get("/product/:productId", getProductReviews);
+
+// Create review for a product (from product page - no order required)
+router.post("/product", protectRoute, createProductReview);
+
+// Create review for an order item (original - requires delivered order)
 router.post("/", protectRoute, createReview);
-// we did not implement this function in the mobile app - in the frontend
-// but jic if you'd like to see the backend code here it is - i provided
+
+// Delete a review
 router.delete("/:reviewId", protectRoute, deleteReview);
 
 export default router;

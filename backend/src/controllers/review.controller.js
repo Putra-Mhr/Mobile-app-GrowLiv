@@ -2,9 +2,85 @@ import { Order } from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
 import { Review } from "../models/review.model.js";
 
+// Create review for a product (direct review from product page)
+export async function createProductReview(req, res) {
+  try {
+    const { productId, rating, comment } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be between 1 and 5" });
+    }
+
+    const user = req.user;
+
+    // Verify product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Create or update review (one review per user per product)
+    const review = await Review.findOneAndUpdate(
+      { productId, userId: user._id },
+      {
+        rating,
+        comment: comment || "",
+        productId,
+        userId: user._id
+      },
+      { new: true, upsert: true, runValidators: true }
+    );
+
+    // Populate user info for response
+    await review.populate("userId", "name imageUrl");
+
+    // Update product's average rating
+    await updateProductRating(productId);
+
+    res.status(201).json({
+      message: "Review submitted successfully",
+      review
+    });
+  } catch (error) {
+    console.error("Error in createProductReview controller:", error);
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ error: "You have already reviewed this product" });
+    }
+
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Get all reviews for a product
+export async function getProductReviews(req, res) {
+  try {
+    const { productId } = req.params;
+
+    if (!productId) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    const reviews = await Review.find({ productId })
+      .populate("userId", "name imageUrl")
+      .sort({ createdAt: -1 }); // Newest first
+
+    res.status(200).json({ reviews });
+  } catch (error) {
+    console.error("Error in getProductReviews controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Original createReview function for order-based reviews
 export async function createReview(req, res) {
   try {
-    const { productId, orderId, rating } = req.body;
+    const { productId, orderId, rating, comment } = req.body;
 
     if (!rating || rating < 1 || rating > 5) {
       return res.status(400).json({ error: "Rating must be between 1 and 5" });
@@ -37,26 +113,15 @@ export async function createReview(req, res) {
     // atomic update or create
     const review = await Review.findOneAndUpdate(
       { productId, userId: user._id },
-      { rating, orderId, productId, userId: user._id },
+      { rating, comment: comment || "", orderId, productId, userId: user._id },
       { new: true, upsert: true, runValidators: true }
     );
 
-    // update the product rating with atomic aggregation
-    const reviews = await Review.find({ productId });
-    const totalRating = reviews.reduce((sum, rev) => sum + rev.rating, 0);
-    const updatedProduct = await Product.findByIdAndUpdate(
-      productId,
-      {
-        averageRating: totalRating / reviews.length,
-        totalReviews: reviews.length,
-      },
-      { new: true, runValidators: true }
-    );
+    // Populate user info
+    await review.populate("userId", "name imageUrl");
 
-    if (!updatedProduct) {
-      await Review.findByIdAndDelete(review._id);
-      return res.status(404).json({ error: "Product not found" });
-    }
+    // Update product rating
+    await updateProductRating(productId);
 
     res.status(201).json({ message: "Review submitted successfully", review });
   } catch (error) {
@@ -83,16 +148,23 @@ export async function deleteReview(req, res) {
     const productId = review.productId;
     await Review.findByIdAndDelete(reviewId);
 
-    const reviews = await Review.find({ productId });
-    const totalRating = reviews.reduce((sum, rev) => sum + rev.rating, 0);
-    await Product.findByIdAndUpdate(productId, {
-      averageRating: reviews.length > 0 ? totalRating / reviews.length : 0,
-      totalReviews: reviews.length,
-    });
+    // Update product rating after deletion
+    await updateProductRating(productId);
 
     res.status(200).json({ message: "Review deleted successfully" });
   } catch (error) {
     console.error("Error in deleteReview controller:", error);
     res.status(500).json({ error: "Internal server error" });
   }
+}
+
+// Helper function to update product rating
+async function updateProductRating(productId) {
+  const reviews = await Review.find({ productId });
+  const totalRating = reviews.reduce((sum, rev) => sum + rev.rating, 0);
+
+  await Product.findByIdAndUpdate(productId, {
+    averageRating: reviews.length > 0 ? totalRating / reviews.length : 0,
+    totalReviews: reviews.length,
+  });
 }
