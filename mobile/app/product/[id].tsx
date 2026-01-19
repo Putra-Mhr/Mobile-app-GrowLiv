@@ -21,6 +21,7 @@ const { width } = Dimensions.get("window");
 
 const ProductDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
+  console.log("ProductDetailScreen: Received id =", id);
   const { data: product, isError, isLoading } = useProduct(id);
   const { addToCart, isAddingToCart } = useCart();
   const { showToast } = useNotification();
