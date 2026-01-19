@@ -1,13 +1,14 @@
 import { useAuth } from "@clerk/clerk-expo";
 import axios from "axios";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // localhost will work in simulator
-const API_URL = "http://192.168.18.29:3000/api";
+const API_URL = "http://192.168.18.31:3000/api";
 
 // prod url will work in your physical device
 // const API_URL = "https://expo-ecommerce-th4ln.sevalla.app/api"
 
+// Create axios instance ONCE outside the hook
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -17,27 +18,38 @@ const api = axios.create({
 
 export const useApi = () => {
   const { getToken } = useAuth();
+  const interceptorId = useRef<number | null>(null);
 
   useEffect(() => {
-    const interceptor = api.interceptors.request.use(async (config) => {
-      const token = await getToken();
+    // Remove previous interceptor if exists
+    if (interceptorId.current !== null) {
+      api.interceptors.request.eject(interceptorId.current);
+    }
 
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    // Add new interceptor with current getToken reference
+    interceptorId.current = api.interceptors.request.use(
+      async (config) => {
+        try {
+          const token = await getToken();
+          console.log("API Request - Token exists:", !!token);
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch (error) {
+          console.log("Failed to get auth token:", error);
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
 
-      return config;
-    });
-
-    // cleanup: remove interceptor when component unmounts
-
+    // Cleanup on unmount or when getToken changes
     return () => {
-      api.interceptors.request.eject(interceptor);
+      if (interceptorId.current !== null) {
+        api.interceptors.request.eject(interceptorId.current);
+      }
     };
   }, [getToken]);
 
   return api;
 };
-
-// on every single req, we would like have an auth token so that our backend knows that we're authenticated
-// we're including the auth token under the auth headers
