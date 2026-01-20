@@ -304,16 +304,58 @@ export async function exportUserData(req, res) {
   }
 }
 
-// Delete user account
+// Delete user account (Soft Delete)
 export async function deleteAccount(req, res) {
   try {
-    const userId = req.user._id;
+    const user = req.user;
+    const userId = user._id;
 
-    // Delete user from database
-    await User.findByIdAndDelete(userId);
+    // Import models for cascade operations
+    const { Cart } = await import("../models/cart.model.js");
+    const { Order } = await import("../models/order.model.js");
+
+    // 1. Mark user as deleted (soft delete)
+    user.deletedAt = new Date();
+
+    // 2. Anonymize personal data
+    user.name = "Deleted User";
+    user.email = `deleted_${userId}@deleted.local`;
+    user.phoneNumber = "";
+    user.birthDate = null;
+    user.gender = "";
+    user.bio = "";
+    user.imageUrl = "";
+
+    // 3. Clear addresses
+    user.addresses = [];
+
+    // 4. Clear wishlist
+    user.wishlist = [];
+
+    await user.save();
+
+    // 5. Delete cart (personal shopping data)
+    await Cart.deleteOne({ user: userId });
+    console.log(`Deleted cart for user ${userId}`);
+
+    // 6. Anonymize orders (keep for sellers but remove personal info)
+    const ordersUpdated = await Order.updateMany(
+      { user: userId },
+      {
+        $set: {
+          "shippingAddress.fullName": "Deleted User",
+          "shippingAddress.streetAddress": "[Redacted]",
+          "shippingAddress.phoneNumber": "[Redacted]",
+        },
+      }
+    );
+    console.log(`Anonymized ${ordersUpdated.modifiedCount} orders for user ${userId}`);
+
+    // Note: Reviews don't need to be updated as they don't store user personal info
+    // They only reference userId which still exists (soft deleted)
 
     res.status(200).json({
-      message: "Account deleted successfully",
+      message: "Account deleted successfully. Your personal data has been removed.",
     });
   } catch (error) {
     console.error("Error in deleteAccount controller:", error);

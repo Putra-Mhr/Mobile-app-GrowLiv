@@ -2,45 +2,60 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { Cart } from "@/types";
 import { useAuth } from "@clerk/clerk-expo";
+import { useEffect } from "react";
 
 const useCart = () => {
   const api = useApi();
   const queryClient = useQueryClient();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
+
+  // Reset cart query when user changes (logout/login)
+  useEffect(() => {
+    if (!isSignedIn) {
+      queryClient.removeQueries({ queryKey: ["cart"] });
+    }
+  }, [isSignedIn, userId, queryClient]);
 
   const {
     data: cart,
     isLoading,
     isError,
+    error,
   } = useQuery({
-    queryKey: ["cart"],
+    // CRITICAL: Include userId in query key to isolate cart data per user
+    queryKey: ["cart", userId],
     queryFn: async () => {
-      console.log("useCart: Fetching cart");
+      console.log("useCart: Fetching cart for user:", userId);
       try {
         const { data } = await api.get<{ cart: Cart }>("/cart");
         console.log("useCart: API response:", data);
         return data.cart;
       } catch (error: any) {
         // If user doesn't exist yet (new account), return empty cart
+        // The backend will auto-create the user on next request via auth middleware
         if (error?.response?.status === 401 || error?.response?.status === 404) {
-          console.log("useCart: User not found, returning empty cart");
-          return { items: [] } as Cart;
+          console.log("useCart: User not found or unauthorized, returning empty cart");
+          return { items: [] } as Partial<Cart> as Cart;
         }
-        console.error("useCart: API error:", error);
+        // For network errors or other issues, throw to trigger error state
+        console.error("useCart: API error:", error?.response?.data || error.message);
         throw error;
       }
     },
-    // Only fetch if user is signed in
-    enabled: !!isSignedIn,
-    // Don't retry on 401/404 errors
+    // Only fetch if user is signed in and userId is available
+    enabled: !!isSignedIn && !!userId,
+    // Retry with exponential backoff for network errors
     retry: (failureCount, error: any) => {
+      // Don't retry on 401/404 errors (user not found)
       if (error?.response?.status === 401 || error?.response?.status === 404) {
         return false;
       }
-      return failureCount < 2;
+      // Retry up to 3 times for other errors (network issues, etc)
+      return failureCount < 3;
     },
-    // Stale time to reduce unnecessary refetches
-    staleTime: 1000 * 60, // 1 minute
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    // Reduce stale time to 10 seconds for fresher data
+    staleTime: 1000 * 10, // 10 seconds
   });
 
   const addToCartMutation = useMutation({
@@ -48,7 +63,7 @@ const useCart = () => {
       const { data } = await api.post<{ cart: Cart }>("/cart", { productId, quantity });
       return data.cart;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart", userId] }),
   });
 
   const updateQuantityMutation = useMutation({
@@ -56,7 +71,7 @@ const useCart = () => {
       const { data } = await api.put<{ cart: Cart }>(`/cart/${productId}`, { quantity });
       return data.cart;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart", userId] }),
   });
 
   const removeFromCartMutation = useMutation({
@@ -64,7 +79,7 @@ const useCart = () => {
       const { data } = await api.delete<{ cart: Cart }>(`/cart/${productId}`);
       return data.cart;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart", userId] }),
   });
 
   const clearCartMutation = useMutation({
@@ -72,7 +87,7 @@ const useCart = () => {
       const { data } = await api.delete<{ cart: Cart }>("/cart");
       return data.cart;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart", userId] }),
   });
 
   const cartTotal =
@@ -84,6 +99,7 @@ const useCart = () => {
     cart,
     isLoading: isLoading && isSignedIn,
     isError,
+    error,
     cartTotal,
     cartItemCount,
     addToCart: addToCartMutation.mutate,
