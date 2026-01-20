@@ -11,8 +11,11 @@ const useCart = () => {
 
   // Reset cart query when user changes (logout/login)
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!isSignedIn || !userId) {
+      // Clear ALL cart queries when user logs out or userId changes
       queryClient.removeQueries({ queryKey: ["cart"] });
+      queryClient.clear(); // Clear entire cache to prevent stale data
+      console.log("useCart: Cleared all cart cache due to user change");
     }
   }, [isSignedIn, userId, queryClient]);
 
@@ -21,6 +24,7 @@ const useCart = () => {
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     // CRITICAL: Include userId in query key to isolate cart data per user
     queryKey: ["cart", userId],
@@ -35,25 +39,17 @@ const useCart = () => {
         // The backend will auto-create the user on next request via auth middleware
         if (error?.response?.status === 401 || error?.response?.status === 404) {
           console.log("useCart: User not found or unauthorized, returning empty cart");
-          return { items: [] } as Partial<Cart> as Cart;
+          return { items: [] } as Cart;
         }
         // For network errors or other issues, throw to trigger error state
         console.error("useCart: API error:", error?.response?.data || error.message);
         throw error;
       }
     },
+    // REMOVED initialData to prevent stale cache
     // Only fetch if user is signed in and userId is available
     enabled: !!isSignedIn && !!userId,
     // Retry with exponential backoff for network errors
-    retry: (failureCount, error: any) => {
-      // Don't retry on 401/404 errors (user not found)
-      if (error?.response?.status === 401 || error?.response?.status === 404) {
-        return false;
-      }
-      // Retry up to 3 times for other errors (network issues, etc)
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     // Reduce stale time to 10 seconds for fresher data
     staleTime: 1000 * 10, // 10 seconds
   });
@@ -110,6 +106,7 @@ const useCart = () => {
     isUpdating: updateQuantityMutation.isPending,
     isRemoving: removeFromCartMutation.isPending,
     isClearing: clearCartMutation.isPending,
+    refetch,
   };
 };
 export default useCart;

@@ -29,6 +29,21 @@ export async function createProduct(req, res) {
 
     const imageUrls = uploadResults.map((result) => result.secure_url);
 
+    // Parse location data from FormData (comes as nested object)
+    const latitude = parseFloat(req.body.location?.latitude);
+    const longitude = parseFloat(req.body.location?.longitude);
+    const address = req.body.location?.address;
+
+    console.log('📥 Received location data:', { latitude, longitude, address });
+
+    if (!latitude || !longitude || !address) {
+      return res.status(400).json({ message: "Product location (latitude, longitude, address) is required" });
+    }
+
+    const location = { latitude, longitude, address };
+
+    console.log('Creating product with location:', location);
+
     const product = await Product.create({
       name,
       description,
@@ -36,6 +51,7 @@ export async function createProduct(req, res) {
       stock: parseInt(stock),
       category,
       images: imageUrls,
+      location,
     });
 
     res.status(201).json(product);
@@ -62,6 +78,14 @@ export async function getAllProducts(req, res) {
 export async function updateProduct(req, res) {
   try {
     const { id } = req.params;
+
+    // DEBUG: Log ALL received data
+    console.log('========== UPDATE PRODUCT DEBUG ==========');
+    console.log('All req.body keys:', Object.keys(req.body));
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+    console.log('==========================================');
+
     const { name, description, price, stock, category } = req.body;
 
     const product = await Product.findById(id);
@@ -91,7 +115,36 @@ export async function updateProduct(req, res) {
       product.images = uploadResults.map((result) => result.secure_url);
     }
 
+    // Handle location updates (location comes as nested object from FormData)
+    const newLatitude = req.body.location?.latitude;
+    const newLongitude = req.body.location?.longitude;
+    const newAddress = req.body.location?.address;
+
+    console.log('🔍 Location update attempt:', {
+      newLatitude,
+      newLongitude,
+      newAddress,
+      currentLocation: product.location
+    });
+
+    // Update location if any location field is provided
+    if (newLatitude && newLongitude && newAddress) {
+      const updatedLocation = {
+        latitude: parseFloat(newLatitude),
+        longitude: parseFloat(newLongitude),
+        address: newAddress,
+      };
+
+      product.location = updatedLocation;
+      console.log('✅ Location updated to:', updatedLocation);
+    } else {
+      console.log('⚠️ Incomplete location data, keeping existing location');
+    }
+
     await product.save();
+
+    console.log('💾 Product saved with location:', product.location);
+
     res.status(200).json(product);
   } catch (error) {
     console.error("Error updating products:", error);

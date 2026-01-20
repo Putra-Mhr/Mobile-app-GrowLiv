@@ -27,6 +27,7 @@ const CartScreen = () => {
     isUpdating,
     removeFromCart,
     updateQuantity,
+    refetch,
   } = useCart();
   const { addresses } = useAddresses();
   const { showToast, showConfirmation } = useNotification();
@@ -79,6 +80,16 @@ const CartScreen = () => {
   const handleProceedWithPayment = async (selectedAddress: Address) => {
     setAddressModalVisible(false);
 
+    // Validate address has coordinates for shipping calculation
+    if (!selectedAddress.coordinates?.latitude || !selectedAddress.coordinates?.longitude) {
+      showToast(
+        'warning',
+        'Lokasi Diperlukan',
+        'Mohon update alamat Anda dengan memilih lokasi di peta untuk menghitung ongkir'
+      );
+      return;
+    }
+
     console.log("Checkout initiated", {
       itemCount: cartItemCount,
       total: total.toFixed(2),
@@ -97,6 +108,7 @@ const CartScreen = () => {
           state: selectedAddress.state,
           zipCode: selectedAddress.zipCode,
           phoneNumber: selectedAddress.phoneNumber,
+          coordinates: selectedAddress.coordinates, // Include coordinates
         },
       });
 
@@ -107,14 +119,16 @@ const CartScreen = () => {
         showToast('error', 'Gagal Memproses', 'Gagal mendapatkan URL pembayaran');
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Payment failed", {
         error: error instanceof Error ? error.message : "Unknown error",
+        response: error?.response?.data,
         cartTotal: total,
         itemCount: cartItems.length,
       });
 
-      showToast('error', 'Pembayaran Gagal', 'Gagal memproses pembayaran. Silakan coba lagi.');
+      const errorMessage = error?.response?.data?.error || 'Gagal memproses pembayaran. Silakan coba lagi.';
+      showToast('error', 'Pembayaran Gagal', errorMessage);
     } finally {
       setPaymentLoading(false);
     }
@@ -122,24 +136,42 @@ const CartScreen = () => {
 
   const handleMidtransSuccess = (orderId: string) => {
     setMidtransVisible(false);
+    console.log('✅ Payment success for order:', orderId);
+
+    // Refetch cart (should be empty after webhook clears it)
+    refetch();
+
     showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
-    clearCart();
+
+    // Navigate to order confirmation or orders page
+    router.push({
+      pathname: '/(profile)/orders',
+      params: { orderId }
+    });
   };
 
   const handleMidtransPending = (orderId: string) => {
     setMidtransVisible(false);
+    console.log('⏳ Payment pending for order:', orderId);
+
+    refetch();
+
     showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
-    clearCart();
+
+    // Also navigate to orders
+    router.push('/(profile)/orders');
   };
 
   const handleMidtransError = () => {
     setMidtransVisible(false);
+    console.log('❌ Payment cancelled/error');
     showToast('error', 'Pembayaran Dibatalkan', 'Anda membatalkan pembayaran.');
   };
 
   if (isLoading) return <LoadingUI />;
   if (isError) return <ErrorUI />;
   if (cartItems.length === 0) return <EmptyUI />;
+
 
   return (
     <View className="flex-1">

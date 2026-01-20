@@ -19,8 +19,34 @@ function OrdersPage() {
     },
   });
 
+  const manualVerifyMutation = useMutation({
+    mutationFn: async (orderId) => {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/payment/manual-verify/${orderId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('clerk-token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to verify payment');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      alert('✅ Payment verified successfully!');
+    },
+    onError: (error) => {
+      alert('❌ Failed to verify: ' + error.message);
+    },
+  });
+
   const handleStatusChange = (orderId, newStatus) => {
     updateStatusMutation.mutate({ orderId, status: newStatus });
+  };
+
+  const handleManualVerify = (orderId) => {
+    if (confirm('Manually mark this order as PAID? This will reduce stock and clear cart.')) {
+      manualVerifyMutation.mutate(orderId);
+    }
   };
 
   const orders = ordersData?.orders || [];
@@ -94,16 +120,55 @@ function OrdersPage() {
                         </td>
 
                         <td>
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                            className="select select-sm"
-                            disabled={updateStatusMutation.isPending}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                          </select>
+                          <div className="flex flex-col gap-1">
+                            {/* Order Status */}
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                              className={`select select-sm ${order.status === 'pending' ? 'select-warning' :
+                                order.status === 'shipped' ? 'select-info' :
+                                  order.status === 'delivered' ? 'select-success' :
+                                    'select-error'
+                                }`}
+                              disabled={updateStatusMutation.isPending}
+                            >
+                              <option value="pending">📦 Pending</option>
+                              <option value="shipped">🚚 Shipped</option>
+                              <option value="delivered">✅ Delivered</option>
+                              <option value="canceled">❌ Canceled</option>
+                            </select>
+
+                            {/* Payment Status Badge */}
+                            {order.isPaid ? (
+                              <span className="badge badge-success badge-sm gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Paid
+                              </span>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                <span className="badge badge-warning badge-sm gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                  </svg>
+                                  Unpaid
+                                </span>
+                                {/* TEMPORARY: Manual verify button for testing */}
+                                <button
+                                  onClick={() => handleManualVerify(order._id)}
+                                  className="btn btn-xs btn-success gap-1"
+                                  disabled={manualVerifyMutation.isPending}
+                                >
+                                  {manualVerifyMutation.isPending ? (
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                  ) : (
+                                    <>✓ Verify</>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
 
                         <td>

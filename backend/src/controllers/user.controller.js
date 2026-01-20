@@ -2,7 +2,7 @@ import { User } from "../models/user.model.js";
 
 export async function addAddress(req, res) {
   try {
-    const { label, fullName, streetAddress, city, state, zipCode, phoneNumber, isDefault } =
+    const { label, fullName, streetAddress, city, state, zipCode, phoneNumber, coordinates, isDefault } =
       req.body;
 
     const user = req.user;
@@ -26,6 +26,7 @@ export async function addAddress(req, res) {
       state,
       zipCode,
       phoneNumber,
+      coordinates, // Include coordinates
       isDefault: isDefault || false,
     });
 
@@ -51,7 +52,7 @@ export async function getAddresses(req, res) {
 
 export async function updateAddress(req, res) {
   try {
-    const { label, fullName, streetAddress, city, state, zipCode, phoneNumber, isDefault } =
+    const { label, fullName, streetAddress, city, state, zipCode, phoneNumber, coordinates, isDefault } =
       req.body;
 
     const { addressId } = req.params;
@@ -76,6 +77,7 @@ export async function updateAddress(req, res) {
     address.state = state || address.state;
     address.zipCode = zipCode || address.zipCode;
     address.phoneNumber = phoneNumber || address.phoneNumber;
+    address.coordinates = coordinates || address.coordinates; // Update coordinates
     address.isDefault = isDefault !== undefined ? isDefault : address.isDefault;
 
     await user.save();

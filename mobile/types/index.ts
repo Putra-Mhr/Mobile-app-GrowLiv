@@ -6,6 +6,11 @@ export interface Product {
   stock: number;
   category: string;
   images: string[];
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
   averageRating: number;
   totalReviews: number;
   createdAt: string;
@@ -33,6 +38,10 @@ export interface Address {
   state: string;
   zipCode: string;
   phoneNumber: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   isDefault: boolean;
 }
 

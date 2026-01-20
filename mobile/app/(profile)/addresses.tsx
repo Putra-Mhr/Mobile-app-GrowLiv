@@ -32,6 +32,7 @@ function AddressesScreen() {
     state: "",
     zipCode: "",
     phoneNumber: "",
+    coordinates: undefined as { latitude: number; longitude: number } | undefined,
     isDefault: false,
   });
 
@@ -46,6 +47,7 @@ function AddressesScreen() {
       state: "",
       zipCode: "",
       phoneNumber: "",
+      coordinates: undefined,
       isDefault: false,
     });
   };
@@ -61,6 +63,7 @@ function AddressesScreen() {
       state: address.state,
       zipCode: address.zipCode,
       phoneNumber: address.phoneNumber,
+      coordinates: address.coordinates,
       isDefault: address.isDefault,
     });
   };
@@ -89,6 +92,18 @@ function AddressesScreen() {
       showToast('error', 'Data Belum Lengkap', 'Mohon isi semua field');
       return;
     }
+
+    // Warn if no coordinates (optional but recommended)
+    if (!addressForm.coordinates?.latitude || !addressForm.coordinates?.longitude) {
+      showToast(
+        'warning',
+        'Lokasi Belum Dipilih',
+        'Mohon pilih lokasi di peta untuk menghitung ongkir yang akurat'
+      );
+      return;
+    }
+
+    console.log('Saving address with data:', addressForm);
 
     if (editingAddressId) {
       updateAddress(
