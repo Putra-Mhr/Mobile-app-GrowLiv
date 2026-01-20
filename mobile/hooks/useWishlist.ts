@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
 import { Product } from "@/types";
+import { useAuth } from "@clerk/clerk-expo";
 
 const useWishlist = () => {
   const api = useApi();
   const queryClient = useQueryClient();
+  const { isSignedIn, isLoaded } = useAuth();
 
   const {
     data: wishlist,
@@ -13,19 +15,33 @@ const useWishlist = () => {
   } = useQuery({
     queryKey: ["wishlist"],
     queryFn: async () => {
-      console.log("useWishlist: Fetching wishlist");
       try {
         const { data } = await api.get<{ wishlist: Product[] }>("/users/wishlist");
-        console.log("useWishlist: API response:", data);
         return data.wishlist;
-      } catch (error) {
-        console.error("useWishlist: API error:", error);
+      } catch (error: any) {
+        // Silently return empty array for auth/user errors
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 404 || status === 500) {
+          // New user or not synced yet - return empty wishlist
+          return [] as Product[];
+        }
         throw error;
       }
     },
+    // Only fetch if user is fully signed in and auth is loaded
+    enabled: isLoaded && !!isSignedIn,
+    // Don't retry on common errors
+    retry: (failureCount, error: any) => {
+      const status = error?.response?.status;
+      if (status === 401 || status === 403 || status === 404 || status === 500) {
+        return false;
+      }
+      return failureCount < 1;
+    },
+    staleTime: 1000 * 60,
+    // Return empty array on error instead of throwing
+    placeholderData: [],
   });
-
-  console.log("useWishlist: wishlist =", wishlist, "isLoading =", isLoading, "isError =", isError);
 
   const addToWishlistMutation = useMutation({
     mutationFn: async (productId: string) => {
@@ -33,6 +49,9 @@ const useWishlist = () => {
       return data.wishlist;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["wishlist"] }),
+    onError: () => {
+      // Silently fail for new users
+    },
   });
 
   const removeFromWishlistMutation = useMutation({
@@ -41,6 +60,9 @@ const useWishlist = () => {
       return data.wishlist;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["wishlist"] }),
+    onError: () => {
+      // Silently fail
+    },
   });
 
   const isInWishlist = (productId: string) => {
@@ -48,6 +70,7 @@ const useWishlist = () => {
   };
 
   const toggleWishlist = (productId: string) => {
+    if (!isSignedIn) return;
     if (isInWishlist(productId)) {
       removeFromWishlistMutation.mutate(productId);
     } else {
@@ -57,8 +80,8 @@ const useWishlist = () => {
 
   return {
     wishlist: wishlist || [],
-    isLoading,
-    isError,
+    isLoading: isLoading && isSignedIn,
+    isError: false, // Always return false to prevent error states
     wishlistCount: wishlist?.length || 0,
     isInWishlist,
     toggleWishlist,

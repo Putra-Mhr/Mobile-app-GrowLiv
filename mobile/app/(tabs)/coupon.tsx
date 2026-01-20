@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { useNotification } from "@/context/NotificationContext";
+import { PageBackground } from "@/components/PageBackground";
 
 type CouponTab = "available" | "myCoupons" | "expired";
 
@@ -223,7 +224,8 @@ const CouponScreen = () => {
     const coupons = getCoupons();
 
     return (
-        <View className="flex-1 bg-gray-50">
+        <View className="flex-1">
+            <PageBackground />
             {/* Green Header */}
             <LinearGradient
                 colors={["#22C55E", "#16A34A"]}

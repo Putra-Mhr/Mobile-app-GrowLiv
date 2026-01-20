@@ -153,3 +153,170 @@ export async function getWishlist(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// Profile management
+export async function getProfile(req, res) {
+  try {
+    const user = req.user;
+
+    res.status(200).json({
+      profile: {
+        name: user.name,
+        email: user.email,
+        imageUrl: user.imageUrl,
+        phoneNumber: user.phoneNumber || "",
+        birthDate: user.birthDate || null,
+        gender: user.gender || "",
+        bio: user.bio || "",
+      },
+    });
+  } catch (error) {
+    console.error("Error in getProfile controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function updateProfile(req, res) {
+  try {
+    const { name, phoneNumber, birthDate, gender, bio } = req.body;
+    const user = req.user;
+
+    // Update profile fields
+    if (name !== undefined) user.name = name;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    if (birthDate !== undefined) user.birthDate = birthDate;
+    if (gender !== undefined) user.gender = gender;
+    if (bio !== undefined) user.bio = bio;
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      profile: {
+        name: user.name,
+        email: user.email,
+        imageUrl: user.imageUrl,
+        phoneNumber: user.phoneNumber || "",
+        birthDate: user.birthDate || null,
+        gender: user.gender || "",
+        bio: user.bio || "",
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateProfile controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Privacy Settings management
+export async function getPrivacySettings(req, res) {
+  try {
+    const user = req.user;
+
+    // Set defaults if privacySettings doesn't exist
+    const settings = user.privacySettings || {
+      biometricEnabled: false,
+      pushNotifications: true,
+      emailNotifications: true,
+      marketingEmails: false,
+      shareData: false,
+    };
+
+    res.status(200).json({ privacySettings: settings });
+  } catch (error) {
+    console.error("Error in getPrivacySettings controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function updatePrivacySettings(req, res) {
+  try {
+    const { biometricEnabled, pushNotifications, emailNotifications, marketingEmails, shareData } = req.body;
+    const user = req.user;
+
+    // Initialize privacySettings if it doesn't exist
+    if (!user.privacySettings) {
+      user.privacySettings = {};
+    }
+
+    // Update only provided fields
+    if (biometricEnabled !== undefined) user.privacySettings.biometricEnabled = biometricEnabled;
+    if (pushNotifications !== undefined) user.privacySettings.pushNotifications = pushNotifications;
+    if (emailNotifications !== undefined) user.privacySettings.emailNotifications = emailNotifications;
+    if (marketingEmails !== undefined) user.privacySettings.marketingEmails = marketingEmails;
+    if (shareData !== undefined) user.privacySettings.shareData = shareData;
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Privacy settings updated successfully",
+      privacySettings: user.privacySettings,
+    });
+  } catch (error) {
+    console.error("Error in updatePrivacySettings controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Export user data
+export async function exportUserData(req, res) {
+  try {
+    const user = await User.findById(req.user._id).populate("wishlist");
+
+    // Compile all user data
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      profile: {
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber || "",
+        birthDate: user.birthDate || null,
+        gender: user.gender || "",
+        bio: user.bio || "",
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      addresses: user.addresses.map((addr) => ({
+        label: addr.label,
+        fullName: addr.fullName,
+        streetAddress: addr.streetAddress,
+        city: addr.city,
+        state: addr.state,
+        zipCode: addr.zipCode,
+        phoneNumber: addr.phoneNumber,
+        isDefault: addr.isDefault,
+      })),
+      wishlist: user.wishlist.map((product) => ({
+        id: product._id,
+        name: product.name,
+        price: product.price,
+      })),
+      privacySettings: user.privacySettings || {},
+    };
+
+    res.status(200).json({
+      message: "Data exported successfully",
+      data: exportData,
+    });
+  } catch (error) {
+    console.error("Error in exportUserData controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Delete user account
+export async function deleteAccount(req, res) {
+  try {
+    const userId = req.user._id;
+
+    // Delete user from database
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteAccount controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
