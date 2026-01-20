@@ -10,7 +10,6 @@ import OrderSummary from "@/components/OrderSummary";
 import AddressSelectionModal from "@/components/AddressSelectionModal";
 import { MidtransPayment } from "@/components/MidtransPayment";
 import { useNotification } from "@/context/NotificationContext";
-import * as Sentry from "@sentry/react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { PageBackground } from "@/components/PageBackground";
@@ -80,7 +79,7 @@ const CartScreen = () => {
   const handleProceedWithPayment = async (selectedAddress: Address) => {
     setAddressModalVisible(false);
 
-    Sentry.logger.info("Checkout initiated", {
+    console.log("Checkout initiated", {
       itemCount: cartItemCount,
       total: total.toFixed(2),
       city: selectedAddress.city,
@@ -109,7 +108,7 @@ const CartScreen = () => {
       }
 
     } catch (error) {
-      Sentry.logger.error("Payment failed", {
+      console.error("Payment failed", {
         error: error instanceof Error ? error.message : "Unknown error",
         cartTotal: total,
         itemCount: cartItems.length,
