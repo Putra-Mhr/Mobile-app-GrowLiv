@@ -29,6 +29,17 @@ const addressSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Coordinates for shipping calculation
+  coordinates: {
+    latitude: {
+      type: Number,
+      required: false, // Optional for backward compatibility
+    },
+    longitude: {
+      type: Number,
+      required: false,
+    },
+  },
   isDefault: {
     type: Boolean,
     default: false,

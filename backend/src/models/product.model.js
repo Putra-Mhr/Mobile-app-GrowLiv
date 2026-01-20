@@ -31,6 +31,21 @@ const productSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    // Location for shipping calculation
+    location: {
+      latitude: {
+        type: Number,
+        required: true,
+      },
+      longitude: {
+        type: Number,
+        required: true,
+      },
+      address: {
+        type: String,
+        required: true,
+      },
+    },
     averageRating: {
       type: Number,
       min: 0,

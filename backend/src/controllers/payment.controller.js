@@ -1,6 +1,7 @@
 import { snap } from "../config/midtrans.js";
 import { Order } from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
+import { calculateCartShipping } from "../services/shipping.service.js";
 
 export async function createSnapTransaction(req, res) {
   try {
@@ -10,6 +11,13 @@ export async function createSnapTransaction(req, res) {
     // Validate cart items
     if (!cartItems || cartItems.length === 0) {
       return res.status(400).json({ error: "Cart is empty" });
+    }
+
+    // Check if address has coordinates for shipping calculation
+    if (!shippingAddress.coordinates?.latitude || !shippingAddress.coordinates?.longitude) {
+      return res.status(400).json({
+        error: "Please update your delivery address with location coordinates for shipping calculation",
+      });
     }
 
     // Calculate total from server-side
@@ -32,10 +40,22 @@ export async function createSnapTransaction(req, res) {
         price: product.price,
         quantity: item.quantity,
         name: product.name.substring(0, 50), // Midtrans name limit
+        product: product, // Include full product for shipping calculation
       });
     }
 
-    const shipping = 15000; // Rp 15.000
+    // Calculate dynamic shipping based on distance
+    let shippingCalculation;
+    try {
+      shippingCalculation = calculateCartShipping(validatedItems, shippingAddress.coordinates);
+    } catch (error) {
+      console.error("Shipping calculation error:", error);
+      return res.status(400).json({
+        error: error.message || "Failed to calculate shipping cost",
+      });
+    }
+
+    const shipping = shippingCalculation.total;
     const tax = Math.round(subtotal * 0.08); // 8% - rounding is important for Midtrans
     const total = subtotal + shipping + tax;
 
@@ -89,13 +109,9 @@ export async function createSnapTransaction(req, res) {
     // Create Snap transaction
     const transaction = await snap.createTransaction(transactionDetails);
 
-    // Ideally, we should create a "pending" order here so we can track it even if the user drops off
-    // For now, mirroring the Stripe logic which creates order on webhook.
-    // However, Midtrans recommends creating order first or handling notification strictly.
-    // We will pass necessary metadata via custom field if possible, or just rely on order_id.
-    // Midtrans doesn't allow arbitrary large metadata.
-    // So we will rely on creating the order AFTER success, or create PENDING order now.
-    // Let's create a PENDING order now to link with the orderId.
+    // Create PENDING order (no stock reduction yet - only after payment verified)
+    // Stock will be reduced by webhook handler when payment is successful
+    console.log("Creating pending order (no stock reduction)...");
 
     const order = await Order.create({
       user: user._id,
@@ -114,12 +130,17 @@ export async function createSnapTransaction(req, res) {
       },
       totalPrice: total,
       status: "pending",
+      isPaid: false, // Explicitly set to false
     });
+
+    console.log("✅ Pending order created:", order._id);
+    console.log("⚠️  Stock NOT reduced yet - waiting for payment verification");
 
     res.status(200).json({
       token: transaction.token,
       redirect_url: transaction.redirect_url,
       orderId: order._id,
+      shippingBreakdown: shippingCalculation.breakdown, // For display in UI
     });
   } catch (error) {
     console.error("Error creating Midtrans transaction:", error);

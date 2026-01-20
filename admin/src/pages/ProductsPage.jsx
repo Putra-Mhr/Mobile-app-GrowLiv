@@ -3,9 +3,11 @@ import { PlusIcon, PencilIcon, Trash2Icon, XIcon, ImageIcon } from "lucide-react
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productApi } from "../lib/api";
 import { getStockStatusBadge } from "../lib/utils";
+import LocationPicker from "../components/LocationPicker";
 
 function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -13,6 +15,9 @@ function ProductsPage() {
     price: "",
     stock: "",
     description: "",
+    latitude: "-6.2088",
+    longitude: "106.8456",
+    address: "Jakarta, Indonesia",
   });
   const [images, setImages] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -60,6 +65,9 @@ function ProductsPage() {
       price: "",
       stock: "",
       description: "",
+      latitude: "-6.2088",
+      longitude: "106.8456",
+      address: "Jakarta, Indonesia",
     });
     setImages([]);
     setImagePreviews([]);
@@ -73,6 +81,9 @@ function ProductsPage() {
       price: product.price?.toString() || "",
       stock: product.stock?.toString() || "",
       description: product.description,
+      latitude: product.location?.latitude?.toString() || "-6.2088",
+      longitude: product.location?.longitude?.toString() || "106.8456",
+      address: product.location?.address || "Jakarta, Indonesia",
     });
     setImagePreviews(product.images);
     setShowModal(true);
@@ -106,10 +117,22 @@ function ProductsPage() {
     formDataToSend.append("stock", formData.stock);
     formDataToSend.append("category", formData.category);
 
+    // Append location data
+    formDataToSend.append("location[latitude]", formData.latitude);
+    formDataToSend.append("location[longitude]", formData.longitude);
+    formDataToSend.append("location[address]", formData.address);
+
+    console.log('📍 Sending location data:', {
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      address: formData.address
+    });
+
     // only append new images if they were selected
     if (images.length > 0) images.forEach((image) => formDataToSend.append("images", image));
 
     if (editingProduct) {
+      console.log('Updating product:', editingProduct._id);
       updateProductMutation.mutate({ id: editingProduct._id, formData: formDataToSend });
     } else {
       createProductMutation.mutate(formDataToSend);
@@ -278,6 +301,65 @@ function ProductsPage() {
               </div>
             </div>
 
+            {/* LOCATION FIELDS */}
+            <div className="divider">📍 Lokasi Produk (untuk ongkir)</div>
+
+            <div className="alert alert-info">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div>
+                <p className="text-sm">Klik tombol dibawah untuk memilih lokasi di peta</p>
+              </div>
+            </div>
+
+            {/* Map Picker Button */}
+            <button
+              type="button"
+              onClick={() => setShowLocationPicker(true)}
+              className="btn btn-outline btn-primary w-full gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+              </svg>
+              {formData.latitude && formData.longitude ? '📍 Update Lokasi di Peta' : '📍 Pilih Lokasi di Peta'}
+            </button>
+
+            {/* Show selected coordinates */}
+            {formData.latitude && formData.longitude && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm font-semibold text-green-900 mb-1">✓ Lokasi Terpilih:</p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-green-700">Latitude:</span>
+                    <span className="ml-1 font-mono text-green-900">{formData.latitude}</span>
+                  </div>
+                  <div>
+                    <span className="text-green-700">Longitude:</span>
+                    <span className="ml-1 font-mono text-green-900">{formData.longitude}</span>
+                  </div>
+                </div>
+                <div className="mt-1">
+                  <span className="text-green-700">Alamat:</span>
+                  <span className="ml-1 text-green-900">{formData.address}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Address input */}
+            <div className="form-control">
+              <label className="label">
+                <span>Alamat Lokasi</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Jakarta, Indonesia"
+                className="input input-bordered"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                required
+              />
+            </div>
+
             <div className="form-control flex flex-col gap-2">
               <label className="label">
                 <span>Description</span>
@@ -357,6 +439,26 @@ function ProductsPage() {
           </form>
         </div>
       </div>
+
+      {/* LOCATION PICKER MODAL */}
+      {showLocationPicker && (
+        <LocationPicker
+          initialLocation={
+            formData.latitude && formData.longitude
+              ? { lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) }
+              : null
+          }
+          onLocationSelect={(location) => {
+            setFormData({
+              ...formData,
+              latitude: location.lat.toString(),
+              longitude: location.lng.toString(),
+            });
+            setShowLocationPicker(false);
+          }}
+          onClose={() => setShowLocationPicker(false)}
+        />
+      )}
     </div>
   );
 }

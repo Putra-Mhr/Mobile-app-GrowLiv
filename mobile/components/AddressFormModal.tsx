@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useState } from "react";
+import { SimpleMapPicker } from "./SimpleMapPicker";
 
 interface AddressFormData {
   label: string;
@@ -21,6 +23,10 @@ interface AddressFormData {
   state: string;
   zipCode: string;
   phoneNumber: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   isDefault: boolean;
 }
 
@@ -45,6 +51,28 @@ const AddressFormModal = ({
   onSave,
   visible,
 }: AddressFormModalProps) => {
+  const [showMapPicker, setShowMapPicker] = useState(false);
+
+  const handleLocationSelect = (coords: { latitude: number; longitude: number }) => {
+    onFormChange({
+      ...addressForm,
+      coordinates: coords,
+    });
+    setShowMapPicker(false);
+  };
+
+  if (showMapPicker) {
+    return (
+      <Modal visible={visible} animationType="slide">
+        <SimpleMapPicker
+          initialCoordinates={addressForm.coordinates}
+          onLocationSelect={handleLocationSelect}
+          onCancel={() => setShowMapPicker(false)}
+        />
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -157,6 +185,30 @@ const AddressFormModal = ({
                   onChangeText={(text) => onFormChange({ ...addressForm, zipCode: text })}
                   keyboardType="numeric"
                 />
+              </View>
+
+              {/* Map Location Picker */}
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">📍 Lokasi (untuk ongkir)</Text>
+                <TouchableOpacity
+                  className="bg-white border border-gray-200 p-4 rounded-xl flex-row items-center justify-between"
+                  onPress={() => setShowMapPicker(true)}
+                >
+                  <View className="flex-1">
+                    {addressForm.coordinates ? (
+                      <>
+                        <Text className="text-gray-800 font-semibold">✓ Lokasi sudah dipilih</Text>
+                        <Text className="text-gray-500 text-sm">
+                          Lat: {addressForm.coordinates.latitude.toFixed(4)}, Lng:{" "}
+                          {addressForm.coordinates.longitude.toFixed(4)}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text className="text-gray-400">Tap untuk pilih lokasi di peta</Text>
+                    )}
+                  </View>
+                  <Ionicons name="map" size={24} color="#22C55E" />
+                </TouchableOpacity>
               </View>
 
               {/* Phone Input */}
