@@ -97,6 +97,11 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
     },
+    // Soft delete support
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
     addresses: [addressSchema],
     wishlist: [
       {

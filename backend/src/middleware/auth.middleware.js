@@ -43,6 +43,13 @@ export const protectRoute = [
 
       req.user = user;
 
+      // Check if user has been deleted (soft delete)
+      if (user.deletedAt) {
+        return res.status(403).json({
+          message: "This account has been deleted. Please contact support if you want to recover your account.",
+        });
+      }
+
       next();
     } catch (error) {
       console.error("Error in protectRoute middleware", error);
