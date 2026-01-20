@@ -22,20 +22,6 @@ const app = express();
 
 const __dirname = path.resolve();
 
-// special handling: Stripe webhook needs raw body BEFORE any body parsing middleware
-// apply raw body parser conditionally only to webhook endpoint
-app.use(
-  "/api/payment",
-  (req, res, next) => {
-    if (req.originalUrl === "/api/payment/webhook") {
-      express.raw({ type: "application/json" })(req, res, next);
-    } else {
-      express.json()(req, res, next); // parse json for non-webhook routes
-    }
-  },
-  paymentRoutes
-);
-
 app.use(express.json());
 app.use(clerkMiddleware()); // adds auth object under the req => req.auth
 app.use(cors({ origin: ENV.CLIENT_URL, credentials: true })); // credentials: true allows the browser to send the cookies to the server with the request
@@ -48,6 +34,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/payment", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.get("/api/health", (req, res) => {

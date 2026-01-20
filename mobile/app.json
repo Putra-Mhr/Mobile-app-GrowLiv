@@ -40,14 +40,6 @@
             "backgroundColor": "#000000"
           }
         }
-      ],
-      [
-        "@sentry/react-native/expo",
-        {
-          "url": "https://sentry.io/",
-          "project": "ecommerce-tut",
-          "organization": "codesistency-gs"
-        }
       ]
     ],
     "experiments": {

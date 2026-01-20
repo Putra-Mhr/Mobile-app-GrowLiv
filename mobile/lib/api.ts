@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 const API_URL = "http://192.168.18.29:3000/api";
 
 // prod url will work in your physical device
-// const API_URL = "https://expo-ecommerce-th4ln.sevalla.app/api"
+// const API_URL = "https://mobile-app-growliv-zm3uu.sevalla.app/api";
 
 // Create axios instance ONCE outside the hook
 const api = axios.create({
