@@ -1,11 +1,15 @@
 import ProductsGrid from "@/components/ProductsGrid";
 import useProducts from "@/hooks/useProducts";
+import useNotifications from "@/hooks/useNotifications";
+import useWishlist from "@/hooks/useWishlist";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, Dimensions, Animated } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, Dimensions } from "react-native";
 import { router } from "expo-router";
 import { useUser } from "@clerk/clerk-expo";
+
+import { PageBackground } from "@/components/PageBackground";
 
 const { width } = Dimensions.get("window");
 
@@ -73,6 +77,8 @@ const HomeScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [currentBanner, setCurrentBanner] = useState(0);
   const { data: products, isLoading, isError } = useProducts();
+  const { unreadCount } = useNotifications();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const { user } = useUser();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -120,7 +126,8 @@ const HomeScreen = () => {
   const currentBannerData = BANNERS[currentBanner];
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1">
+      <PageBackground />
       {/* Green Header Background */}
       <LinearGradient
         colors={["#22C55E", "#16A34A"]}
@@ -149,11 +156,16 @@ const HomeScreen = () => {
 
           <View className="flex-row gap-2">
             {/* Notification */}
-            <TouchableOpacity className="bg-white/20 p-3 rounded-xl">
+            <TouchableOpacity
+              className="bg-white/20 p-3 rounded-xl"
+              onPress={() => router.push("/(profile)/notifications")}
+            >
               <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
-              <View className="absolute -top-1 -right-1 bg-red-500 w-4 h-4 rounded-full items-center justify-center">
-                <Text className="text-white text-xs font-bold">2</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View className="absolute -top-1 -right-1 bg-red-500 min-w-[18px] h-[18px] rounded-full items-center justify-center px-1">
+                  <Text className="text-white text-xs font-bold">{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
 
             {/* Wishlist */}
@@ -336,8 +348,8 @@ const HomeScreen = () => {
                 </View>
                 <Text className="text-gray-800 text-lg font-bold">Populer Minggu Ini</Text>
               </View>
-              <TouchableOpacity onPress={() => router.push("/(tabs)/shop")}>
-                <Text className="text-green-500 font-medium">Lihat Semua</Text>
+              <TouchableOpacity onPress={() => router.push("/(tabs)/shop?filter=popular")}>
+                <Text className="text-amber-500 font-medium">Lihat Semua</Text>
               </TouchableOpacity>
             </View>
 
@@ -349,17 +361,57 @@ const HomeScreen = () => {
               {featuredProducts.map((product) => (
                 <TouchableOpacity
                   key={product._id}
-                  className="bg-gray-50 rounded-2xl overflow-hidden"
-                  style={{ width: 150 }}
+                  style={{
+                    width: 160,
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                  }}
                   activeOpacity={0.8}
                   onPress={() => router.push(`/product/${product._id}`)}
                 >
-                  <Image
-                    source={{ uri: product.images?.[0] || "https://via.placeholder.com/150" }}
-                    style={{ width: 150, height: 120 }}
-                    resizeMode="cover"
-                  />
-                  <View className="p-3">
+                  <View style={{ position: "relative" }}>
+                    <Image
+                      source={{ uri: product.images?.[0] || "https://via.placeholder.com/150" }}
+                      style={{ width: 160, height: 120 }}
+                      resizeMode="cover"
+                    />
+                    {/* Wishlist Button */}
+                    <TouchableOpacity
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        backgroundColor: "rgba(255,255,255,0.95)",
+                        padding: 6,
+                        borderRadius: 20,
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 2,
+                        elevation: 2,
+                      }}
+                      activeOpacity={0.7}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleWishlist(product._id);
+                      }}
+                    >
+                      <Ionicons
+                        name={isInWishlist(product._id) ? "heart" : "heart-outline"}
+                        size={18}
+                        color={isInWishlist(product._id) ? "#EF4444" : "#9CA3AF"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ padding: 12 }}>
                     <Text className="text-gray-800 font-semibold text-sm" numberOfLines={1}>
                       {product.name}
                     </Text>

@@ -59,6 +59,48 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Profile fields
+    phoneNumber: {
+      type: String,
+      default: "",
+    },
+    birthDate: {
+      type: Date,
+      default: null,
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other", ""],
+      default: "",
+    },
+    bio: {
+      type: String,
+      default: "",
+      maxlength: 500,
+    },
+    // Privacy & Security settings
+    privacySettings: {
+      biometricEnabled: {
+        type: Boolean,
+        default: false,
+      },
+      pushNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      emailNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      marketingEmails: {
+        type: Boolean,
+        default: false,
+      },
+      shareData: {
+        type: Boolean,
+        default: false,
+      },
+    },
     addresses: [addressSchema],
     wishlist: [
       {

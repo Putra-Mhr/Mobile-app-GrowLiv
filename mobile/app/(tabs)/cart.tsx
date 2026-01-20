@@ -13,6 +13,7 @@ import { useNotification } from "@/context/NotificationContext";
 import * as Sentry from "@sentry/react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { PageBackground } from "@/components/PageBackground";
 
 const CartScreen = () => {
   const api = useApi();
@@ -142,7 +143,8 @@ const CartScreen = () => {
   if (cartItems.length === 0) return <EmptyUI />;
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1">
+      <PageBackground />
       {/* Green Header */}
       <LinearGradient
         colors={["#22C55E", "#16A34A"]}
@@ -307,7 +309,8 @@ export default CartScreen;
 
 function LoadingUI() {
   return (
-    <View className="flex-1 bg-gray-50 items-center justify-center">
+    <View className="flex-1 items-center justify-center">
+      <PageBackground />
       <View className="bg-green-50 p-6 rounded-full mb-4">
         <ActivityIndicator size="large" color="#22C55E" />
       </View>
@@ -318,7 +321,8 @@ function LoadingUI() {
 
 function ErrorUI() {
   return (
-    <View className="flex-1 bg-gray-50 items-center justify-center px-6">
+    <View className="flex-1 items-center justify-center px-6">
+      <PageBackground />
       <View className="bg-red-50 p-6 rounded-full mb-4">
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
       </View>
@@ -332,7 +336,8 @@ function ErrorUI() {
 
 function EmptyUI() {
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1">
+      <PageBackground />
       <LinearGradient
         colors={["#22C55E", "#16A34A"]}
         start={{ x: 0, y: 0 }}

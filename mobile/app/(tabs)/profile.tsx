@@ -2,32 +2,80 @@ import { useAuth, useUser } from "@clerk/clerk-expo";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { useCallback, useState } from "react";
+import { useApi } from "@/lib/api";
+import useNotifications from "@/hooks/useNotifications";
+import { PageBackground } from "@/components/PageBackground";
 
 const MENU_ITEMS = [
-  { id: 1, icon: "person-outline", title: "Edit Profil", color: "#3B82F6", bgColor: "#DBEAFE", action: "/profile" },
+  { id: 1, icon: "person-outline", title: "Edit Profil", color: "#3B82F6", bgColor: "#DBEAFE", action: "/edit-profile" },
   { id: 2, icon: "list-outline", title: "Pesanan", color: "#10B981", bgColor: "#D1FAE5", action: "/orders" },
   { id: 3, icon: "location-outline", title: "Alamat", color: "#F59E0B", bgColor: "#FEF3C7", action: "/addresses" },
   { id: 4, icon: "heart-outline", title: "Wishlist", color: "#EF4444", bgColor: "#FEE2E2", action: "/wishlist" },
 ] as const;
 
-const BADGES = [
-  { icon: "leaf", label: "Petani Aktif", color: "#22C55E" },
-  { icon: "star", label: "Member Gold", color: "#F59E0B" },
+// Daily gardening tips - rotates based on day of year
+const GARDENING_TIPS = [
+  { emoji: "🌱", tip: "Siram tanaman di pagi hari sebelum matahari terik untuk hasil optimal!" },
+  { emoji: "🥬", tip: "Sayuran berdaun seperti bayam dan kangkung sebaiknya dipanen saat masih muda." },
+  { emoji: "🌻", tip: "Bunga matahari bisa menjadi pendamping yang baik untuk melindungi tanaman dari hama." },
+  { emoji: "🍅", tip: "Taruh kulit telur di sekitar tanaman tomat untuk mencegah hama siput!" },
+  { emoji: "🌿", tip: "Tanaman herbal seperti kemangi bisa mengusir nyamuk secara alami." },
+  { emoji: "🥕", tip: "Wortel membutuhkan tanah yang gembur agar tumbuh lurus dan panjang." },
+  { emoji: "🌾", tip: "Rotasi tanaman setiap musim untuk menjaga kesuburan tanah!" },
 ];
 
 const ProfileScreen = () => {
   const { signOut } = useAuth();
   const { user } = useUser();
+  const api = useApi();
+  const { unreadCount } = useNotifications();
+
+  // Profile state from backend
+  const [profileName, setProfileName] = useState<string | null>(null);
+
+  // Fetch profile data from backend
+  const loadProfile = useCallback(async () => {
+    try {
+      const response = await api.get("/users/profile");
+      if (response.data?.profile?.name) {
+        setProfileName(response.data.profile.name);
+      }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+      // Keep using Clerk name as fallback
+    }
+  }, [api]);
+
+  // Reload profile when screen is focused (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
+
+  // Get daily tip based on day of year
+  const dailyTip = (() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const dayOfYear = Math.floor(diff / oneDay);
+    return GARDENING_TIPS[dayOfYear % GARDENING_TIPS.length];
+  })();
+
+  // Display name: prefer backend name, fallback to Clerk name
+  const displayName = profileName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "User";
 
   const handleMenuPress = (action: (typeof MENU_ITEMS)[number]["action"]) => {
-    if (action === "/profile") return;
     router.push(action);
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1">
+      <PageBackground />
       {/* Green Header with Pattern Overlay */}
       <LinearGradient
         colors={["#22C55E", "#16A34A"]}
@@ -79,22 +127,11 @@ const ProfileScreen = () => {
 
               <View className="flex-1 ml-4">
                 <Text className="text-gray-800 text-xl font-bold mb-1">
-                  {user?.firstName} {user?.lastName}
+                  {displayName}
                 </Text>
-                <Text className="text-gray-500 text-sm mb-2">
+                <Text className="text-gray-500 text-sm">
                   {user?.emailAddresses?.[0]?.emailAddress || "No email"}
                 </Text>
-                {/* Achievement Badges */}
-                <View className="flex-row gap-2">
-                  {BADGES.map((badge, idx) => (
-                    <View key={idx} className="flex-row items-center bg-green-50 px-2 py-1 rounded-full">
-                      <Ionicons name={badge.icon as any} size={12} color={badge.color} />
-                      <Text className="text-xs font-medium ml-1" style={{ color: badge.color }}>
-                        {badge.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
               </View>
             </View>
           </View>
@@ -115,7 +152,7 @@ const ProfileScreen = () => {
               <Text className="text-green-800 font-bold">Tips Berkebun Hari Ini</Text>
             </View>
             <Text className="text-green-700 text-sm leading-5">
-              🌱 Siram tanaman di pagi hari sebelum matahari terik untuk hasil optimal!
+              {dailyTip.emoji} {dailyTip.tip}
             </Text>
           </LinearGradient>
         </View>
@@ -146,6 +183,7 @@ const ProfileScreen = () => {
           <TouchableOpacity
             className="flex-row items-center justify-between"
             activeOpacity={0.7}
+            onPress={() => router.push("/(profile)/notifications")}
           >
             <View className="flex-row items-center">
               <LinearGradient
@@ -156,13 +194,15 @@ const ProfileScreen = () => {
               </LinearGradient>
               <View>
                 <Text className="text-gray-800 font-semibold text-base">Notifikasi</Text>
-                <Text className="text-gray-500 text-xs">Kelola preferensi notifikasi</Text>
+                <Text className="text-gray-500 text-xs">Lihat semua notifikasi</Text>
               </View>
             </View>
             <View className="flex-row items-center">
-              <View className="bg-red-500 w-5 h-5 rounded-full items-center justify-center mr-2">
-                <Text className="text-white text-xs font-bold">3</Text>
-              </View>
+              {unreadCount > 0 && (
+                <View className="bg-red-500 min-w-[20px] h-5 rounded-full items-center justify-center mr-2 px-1">
+                  <Text className="text-white text-xs font-bold">{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                </View>
+              )}
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
           </TouchableOpacity>
@@ -215,3 +255,4 @@ const ProfileScreen = () => {
 };
 
 export default ProfileScreen;
+

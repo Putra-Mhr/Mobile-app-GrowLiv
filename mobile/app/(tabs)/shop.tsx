@@ -2,8 +2,10 @@ import ProductsGrid from "@/components/ProductsGrid";
 import useProducts from "@/hooks/useProducts";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useMemo, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Dimensions } from "react-native";
+import { PageBackground } from "@/components/PageBackground";
 
 const { width } = Dimensions.get("window");
 
@@ -19,15 +21,41 @@ const CATEGORIES = [
 ];
 
 const ShopScreen = () => {
+    const { filter } = useLocalSearchParams<{ filter?: string }>();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
+    const [activeFilter, setActiveFilter] = useState<"all" | "popular">("all");
 
     const { data: products, isLoading, isError } = useProducts();
+
+    // Set filter based on URL param on mount
+    useEffect(() => {
+        if (filter === "popular") {
+            setActiveFilter("popular");
+        } else {
+            setActiveFilter("all");
+        }
+    }, [filter]);
+
+    // Check if product is from this week (last 7 days)
+    const isFromThisWeek = (createdAt: string) => {
+        if (!createdAt) return false;
+        const createdDate = new Date(createdAt);
+        const now = new Date();
+        const diffMs = now.getTime() - createdDate.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+    };
 
     const filteredProducts = useMemo(() => {
         if (!products) return [];
 
         let filtered = [...products];
+
+        // Filter by time (popular = this week)
+        if (activeFilter === "popular") {
+            filtered = filtered.filter((product) => isFromThisWeek(product.createdAt));
+        }
 
         // Filter by category
         if (selectedCategory !== "All") {
@@ -44,13 +72,23 @@ const ShopScreen = () => {
         }
 
         return filtered;
-    }, [products, selectedCategory, searchQuery]);
+    }, [products, selectedCategory, searchQuery, activeFilter]);
+
+    const getHeaderTitle = () => {
+        if (activeFilter === "popular") {
+            return { title: "Populer Minggu Ini", subtitle: "Produk terpopuler dalam 7 hari" };
+        }
+        return { title: "Pasar", subtitle: "Belanja kebutuhan Anda" };
+    };
+
+    const headerInfo = getHeaderTitle();
 
     return (
-        <View className="flex-1 bg-gray-50">
+        <View className="flex-1">
+            <PageBackground />
             {/* Teal Header */}
             <LinearGradient
-                colors={["#0D9488", "#059669"]}
+                colors={activeFilter === "popular" ? ["#F59E0B", "#D97706"] : ["#0D9488", "#059669"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
@@ -63,20 +101,24 @@ const ShopScreen = () => {
                 <View className="flex-row items-center justify-between mb-4">
                     <View className="flex-row items-center">
                         <View className="bg-white/20 p-2 rounded-xl mr-3">
-                            <Ionicons name="storefront" size={24} color="#FFFFFF" />
+                            <Ionicons
+                                name={activeFilter === "popular" ? "star" : "storefront"}
+                                size={24}
+                                color="#FFFFFF"
+                            />
                         </View>
                         <View>
-                            <Text className="text-white text-2xl font-bold">Pasar</Text>
-                            <Text className="text-white/70 text-sm">Belanja kebutuhan Anda</Text>
+                            <Text className="text-white text-2xl font-bold">{headerInfo.title}</Text>
+                            <Text className="text-white/70 text-sm">{headerInfo.subtitle}</Text>
                         </View>
                     </View>
                 </View>
 
                 {/* Search Bar */}
                 <View className="bg-white flex-row items-center px-4 py-3 rounded-2xl shadow-sm">
-                    <Ionicons name="search" size={20} color="#0D9488" />
+                    <Ionicons name="search" size={20} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
                     <TextInput
-                        placeholder="Cari produk di pasar..."
+                        placeholder="Cari produk..."
                         placeholderTextColor="#9CA3AF"
                         className="flex-1 ml-3 text-base text-gray-800"
                         value={searchQuery}
@@ -95,11 +137,43 @@ const ShopScreen = () => {
                 contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Filter Toggle */}
+                <View className="px-5 py-4 flex-row gap-2">
+                    <TouchableOpacity
+                        className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "all" ? "bg-teal-500" : "bg-gray-200"
+                            }`}
+                        onPress={() => setActiveFilter("all")}
+                    >
+                        <Ionicons
+                            name="grid-outline"
+                            size={16}
+                            color={activeFilter === "all" ? "#FFFFFF" : "#6B7280"}
+                        />
+                        <Text className={`ml-2 font-medium ${activeFilter === "all" ? "text-white" : "text-gray-600"}`}>
+                            Semua Produk
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "popular" ? "bg-amber-500" : "bg-gray-200"
+                            }`}
+                        onPress={() => setActiveFilter("popular")}
+                    >
+                        <Ionicons
+                            name="star"
+                            size={16}
+                            color={activeFilter === "popular" ? "#FFFFFF" : "#6B7280"}
+                        />
+                        <Text className={`ml-2 font-medium ${activeFilter === "popular" ? "text-white" : "text-gray-600"}`}>
+                            Minggu Ini
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 {/* Category Filter - Same style as Home Page */}
-                <View className="bg-white pt-6 pb-4 shadow-sm">
+                <View className="bg-white pt-4 pb-4 shadow-sm">
                     <View className="px-5 flex-row items-center justify-between mb-4">
                         <View className="flex-row items-center">
-                            <Ionicons name="pricetags" size={20} color="#0D9488" />
+                            <Ionicons name="pricetags" size={20} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
                             <Text className="text-gray-800 text-lg font-bold ml-2">Kategori</Text>
                         </View>
                     </View>
@@ -157,8 +231,8 @@ const ShopScreen = () => {
                 {/* Results Count */}
                 <View className="px-5 py-4">
                     <View className="flex-row items-center">
-                        <View className="bg-teal-100 p-2 rounded-lg mr-2">
-                            <Ionicons name="grid" size={16} color="#0D9488" />
+                        <View className={`p-2 rounded-lg mr-2 ${activeFilter === "popular" ? "bg-amber-100" : "bg-teal-100"}`}>
+                            <Ionicons name="grid" size={16} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
                         </View>
                         <Text className="text-gray-800 font-bold text-lg">
                             {filteredProducts.length} Produk
@@ -166,6 +240,11 @@ const ShopScreen = () => {
                         {selectedCategory !== "All" && (
                             <View className="bg-teal-100 px-2 py-1 rounded-full ml-2">
                                 <Text className="text-teal-700 text-xs font-medium">{selectedCategory}</Text>
+                            </View>
+                        )}
+                        {activeFilter === "popular" && (
+                            <View className="bg-amber-100 px-2 py-1 rounded-full ml-2">
+                                <Text className="text-amber-700 text-xs font-medium">7 Hari Terakhir</Text>
                             </View>
                         )}
                     </View>

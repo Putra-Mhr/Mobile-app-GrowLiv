@@ -46,6 +46,16 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
     // Alternate background colors
     const bgColor = index % 2 === 0 ? "#FEF9C3" : "#DCFCE7";
 
+    // Check if product is new (created within last 24 hours)
+    const isNewProduct = () => {
+      if (!product.createdAt) return false;
+      const createdDate = new Date(product.createdAt);
+      const now = new Date();
+      const diffMs = now.getTime() - createdDate.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+      return diffHours <= 24;
+    };
+
     return (
       <TouchableOpacity
         style={{
@@ -65,20 +75,22 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
             resizeMode="cover"
           />
 
-          {/* NEW Badge */}
-          <View
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              backgroundColor: "#22C55E",
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 4,
-            }}
-          >
-            <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>NEW</Text>
-          </View>
+          {/* NEW Badge - only show for products created within 24 hours */}
+          {isNewProduct() && (
+            <View
+              style={{
+                position: "absolute",
+                top: 8,
+                left: 8,
+                backgroundColor: "#22C55E",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 4,
+              }}
+            >
+              <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>NEW</Text>
+            </View>
+          )}
 
           {/* Wishlist Button */}
           <TouchableOpacity
