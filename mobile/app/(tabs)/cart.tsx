@@ -1,4 +1,4 @@
-import { useAddresses } from "@/hooks/useAddressess";
+import { useAddresses } from "@/hooks/useAddresses";
 import useCart from "@/hooks/useCart";
 import { useApi } from "@/lib/api";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";

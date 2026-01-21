@@ -102,10 +102,10 @@ export interface CartItem {
 }
 
 export interface Cart {
-  _id: string;
-  user: string;
-  clerkId: string;
+  _id?: string;
+  user?: string;
+  clerkId?: string;
   items: CartItem[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
