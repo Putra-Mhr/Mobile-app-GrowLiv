@@ -1,6 +1,6 @@
 import AddressCard from "@/components/AddressCard";
 import AddressFormModal from "@/components/AddressFormModal";
-import { useAddresses } from "@/hooks/useAddressess";
+import { useAddresses } from "@/hooks/useAddresses";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -8,6 +8,21 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "rea
 import { useNotification } from "@/context/NotificationContext";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+
+interface AddressFormData {
+  label: string;
+  fullName: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  phoneNumber: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  isDefault: boolean;
+}
 
 function AddressesScreen() {
   const {
@@ -24,7 +39,7 @@ function AddressesScreen() {
   const { showToast, showConfirmation } = useNotification();
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
-  const [addressForm, setAddressForm] = useState({
+  const [addressForm, setAddressForm] = useState<AddressFormData>({
     label: "",
     fullName: "",
     streetAddress: "",
@@ -32,7 +47,7 @@ function AddressesScreen() {
     state: "",
     zipCode: "",
     phoneNumber: "",
-    coordinates: undefined as { latitude: number; longitude: number } | undefined,
+    coordinates: undefined,
     isDefault: false,
   });
 
@@ -206,7 +221,7 @@ function AddressesScreen() {
           contentContainerStyle={{ paddingBottom: 100 }}
         >
           <View className="px-5 py-4">
-            {addresses.map((address) => (
+            {addresses.map((address: Address) => (
               <AddressCard
                 key={address._id}
                 address={address}

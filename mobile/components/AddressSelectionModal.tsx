@@ -1,4 +1,4 @@
-import { useAddresses } from "@/hooks/useAddressess";
+import { useAddresses } from "@/hooks/useAddresses";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -43,11 +43,10 @@ const AddressSelectionModal = ({
                 {addresses?.map((address: Address) => (
                   <TouchableOpacity
                     key={address._id}
-                    className={`bg-surface rounded-3xl p-6 border-2 ${
-                      selectedAddress?._id === address._id
+                    className={`bg-surface rounded-3xl p-6 border-2 ${selectedAddress?._id === address._id
                         ? "border-primary"
                         : "border-background-lighter"
-                    }`}
+                      }`}
                     activeOpacity={0.7}
                     onPress={() => setSelectedAddress(address)}
                   >
