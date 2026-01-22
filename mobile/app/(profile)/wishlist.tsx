@@ -29,7 +29,11 @@ function WishlistScreen() {
     addToCart(
       { productId, quantity: 1 },
       {
-        onSuccess: () => showToast('success', 'Berhasil! 🛒', `${productName} ditambahkan ke keranjang`),
+        onSuccess: () => {
+          showToast('success', 'Berhasil! 🛒', `${productName} ditambahkan ke keranjang`);
+          // Auto-redirect to cart page
+          router.push('/(tabs)/cart');
+        },
         onError: (error: any) => {
           showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambahkan ke keranjang');
         },

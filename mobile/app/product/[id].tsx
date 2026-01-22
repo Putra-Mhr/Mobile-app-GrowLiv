@@ -89,7 +89,11 @@ const ProductDetailScreen = () => {
     addToCart(
       { productId: product._id, quantity },
       {
-        onSuccess: () => showToast('success', 'Ditambahkan!', `${product.name} ditambahkan ke keranjang`),
+        onSuccess: () => {
+          showToast('success', 'Ditambahkan!', `${product.name} ditambahkan ke keranjang`);
+          // Auto-redirect to cart page
+          router.push('/(tabs)/cart');
+        },
         onError: (error: any) => {
           showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambahkan ke keranjang');
         },

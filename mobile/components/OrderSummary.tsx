@@ -29,16 +29,14 @@ export default function OrderSummary({ subtotal, shipping, tax, total }: OrderSu
           </View>
 
           <View className="flex-row justify-between items-center">
-            <Text className="text-gray-500 text-base">Pajak (8%)</Text>
+            <Text className="text-gray-500 text-base">Biaya Admin</Text>
             <Text className="text-gray-800 font-semibold text-base">
               Rp {Math.round(tax).toLocaleString("id-ID")}
             </Text>
           </View>
 
-          {/* Divider */}
           <View className="border-t border-gray-200 pt-3 mt-1" />
 
-          {/* Total */}
           <View className="flex-row justify-between items-center">
             <Text className="text-gray-800 font-bold text-lg">Total</Text>
             <Text className="text-green-600 font-bold text-2xl">

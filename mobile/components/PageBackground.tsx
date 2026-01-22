@@ -19,7 +19,7 @@ export const PageBackground = () => {
                     width: width * 0.8,
                     height: width * 0.8,
                     borderRadius: width * 0.4,
-                    backgroundColor: "#DCFCE7", // Light green
+                    backgroundColor: "#DCFCE7", 
                     opacity: 0.6,
                     transform: [{ scale: 1.2 }],
                 }}
@@ -32,13 +32,12 @@ export const PageBackground = () => {
                     width: width * 0.6,
                     height: width * 0.6,
                     borderRadius: width * 0.3,
-                    backgroundColor: "#CCFBF1", // Light teal
+                    backgroundColor: "#CCFBF1", 
                     opacity: 0.5,
                     transform: [{ scale: 1.5 }],
                 }}
             />
 
-            {/* Center Right - Amber/Yellow Tint */}
             <View
                 style={{
                     position: "absolute",
@@ -47,12 +46,11 @@ export const PageBackground = () => {
                     width: width * 0.8,
                     height: width * 0.8,
                     borderRadius: width * 0.4,
-                    backgroundColor: "#FEF3C7", // Light amber
+                    backgroundColor: "#FEF3C7", 
                     opacity: 0.4,
                 }}
             />
 
-            {/* Bottom Left - Subtle Blue Tint */}
             <View
                 style={{
                     position: "absolute",
@@ -61,7 +59,7 @@ export const PageBackground = () => {
                     width: width * 0.9,
                     height: width * 0.9,
                     borderRadius: width * 0.45,
-                    backgroundColor: "#DBEAFE", // Light blue
+                    backgroundColor: "#DBEAFE", 
                     opacity: 0.4,
                 }}
             />

@@ -24,13 +24,11 @@ function ProductsPage() {
 
   const queryClient = useQueryClient();
 
-  // fetch some data
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: productApi.getAll,
   });
 
-  // creating, update, deleting
   const createProductMutation = useMutation({
     mutationFn: productApi.create,
     onSuccess: () => {
@@ -56,7 +54,6 @@ function ProductsPage() {
   });
 
   const closeModal = () => {
-    // reset the state
     setShowModal(false);
     setEditingProduct(null);
     setFormData({
@@ -117,7 +114,6 @@ function ProductsPage() {
     formDataToSend.append("stock", formData.stock);
     formDataToSend.append("category", formData.category);
 
-    // Append location data
     formDataToSend.append("location[latitude]", formData.latitude);
     formDataToSend.append("location[longitude]", formData.longitude);
     formDataToSend.append("location[address]", formData.address);
@@ -128,7 +124,6 @@ function ProductsPage() {
       address: formData.address
     });
 
-    // only append new images if they were selected
     if (images.length > 0) images.forEach((image) => formDataToSend.append("images", image));
 
     if (editingProduct) {

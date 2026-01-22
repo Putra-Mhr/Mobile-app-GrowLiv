@@ -32,6 +32,8 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
       {
         onSuccess: () => {
           showToast('success', 'Added to Cart!', `${productName} has been added to your cart`);
+          // Auto-redirect to cart page
+          router.push('/(tabs)/cart');
         },
         onError: (error: any) => {
           showToast('error', 'Failed to Add', error?.response?.data?.error || 'Could not add item to cart');
