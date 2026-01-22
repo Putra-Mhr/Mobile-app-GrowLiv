@@ -2,10 +2,12 @@ import { Router } from "express";
 import {
   addAddress,
   addToWishlist,
+  completeOnboarding,
   deleteAccount,
   deleteAddress,
   exportUserData,
   getAddresses,
+  getOnboardingStatus,
   getPrivacySettings,
   getProfile,
   getWishlist,
@@ -23,6 +25,10 @@ router.use(protectRoute);
 // profile routes
 router.get("/profile", getProfile);
 router.put("/profile", updateProfile);
+
+// onboarding routes
+router.get("/onboarding-status", getOnboardingStatus);
+router.post("/complete-onboarding", completeOnboarding);
 
 // privacy settings routes
 router.get("/privacy-settings", getPrivacySettings);

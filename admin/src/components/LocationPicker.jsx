@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix for default marker icon in Leaflet with bundlers
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -19,27 +18,22 @@ export default function LocationPicker({ initialLocation, onLocationSelect, onCl
 
     useEffect(() => {
         if (!mapRef.current) {
-            // Initialize map
             const map = L.map('map').setView([location.lat, location.lng], 13);
 
-            // Add OpenStreetMap tiles (free!)
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19,
             }).addTo(map);
 
-            // Add marker
             const marker = L.marker([location.lat, location.lng], {
                 draggable: true,
             }).addTo(map);
 
-            // Update location when marker is dragged
             marker.on('dragend', function (e) {
                 const pos = e.target.getLatLng();
                 setLocation({ lat: pos.lat, lng: pos.lng });
             });
 
-            // Click on map to move marker
             map.on('click', function (e) {
                 marker.setLatLng(e.latlng);
                 setLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
@@ -62,10 +56,10 @@ export default function LocationPicker({ initialLocation, onLocationSelect, onCl
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 text-white">
+                <div className="bg-gradient-to-right from-green-600 to-green-700 p-4 text-white">
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-xl font-bold">📍 Pilih Lokasi Produk</h3>

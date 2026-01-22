@@ -85,6 +85,23 @@ const userSchema = new mongoose.Schema(
       default: "",
       maxlength: 500,
     },
+    // Onboarding status
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    // User preferences
+    preferences: {
+      deliveryTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening", ""],
+        default: "",
+      },
+      favoriteCategories: [{
+        type: String,
+        enum: ["Dairy", "Vegetable", "Fruit", "Other Products from Farmer"],
+      }],
+    },
     // Privacy & Security settings
     privacySettings: {
       biometricEnabled: {

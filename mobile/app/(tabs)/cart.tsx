@@ -40,7 +40,7 @@ const CartScreen = () => {
   const cartItems = cart?.items || [];
   const subtotal = cartTotal;
   const shipping = 15000;
-  const tax = subtotal * 0.08;
+  const tax = 1500;
   const total = subtotal + shipping + tax;
 
   const handleQuantityChange = (productId: string, currentQuantity: number, change: number) => {
@@ -143,8 +143,8 @@ const CartScreen = () => {
 
     showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
 
-    // Navigate to order confirmation or orders page
-    router.push({
+    // Use replace instead of push to avoid navigation stack buildup
+    router.replace({
       pathname: '/(profile)/orders',
       params: { orderId }
     });
@@ -158,8 +158,8 @@ const CartScreen = () => {
 
     showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
 
-    // Also navigate to orders
-    router.push('/(profile)/orders');
+    // Use replace to avoid double back
+    router.replace('/(profile)/orders');
   };
 
   const handleMidtransError = () => {

@@ -180,7 +180,7 @@ export async function getProfile(req, res) {
 
 export async function updateProfile(req, res) {
   try {
-    const { name, phoneNumber, birthDate, gender, bio } = req.body;
+    const { name, phoneNumber, birthDate, gender, bio, preferences } = req.body;
     const user = req.user;
 
     // Update profile fields
@@ -189,6 +189,19 @@ export async function updateProfile(req, res) {
     if (birthDate !== undefined) user.birthDate = birthDate;
     if (gender !== undefined) user.gender = gender;
     if (bio !== undefined) user.bio = bio;
+
+    // Update preferences if provided
+    if (preferences !== undefined) {
+      if (!user.preferences) {
+        user.preferences = {};
+      }
+      if (preferences.deliveryTime !== undefined) {
+        user.preferences.deliveryTime = preferences.deliveryTime;
+      }
+      if (preferences.favoriteCategories !== undefined) {
+        user.preferences.favoriteCategories = preferences.favoriteCategories;
+      }
+    }
 
     await user.save();
 
@@ -202,6 +215,7 @@ export async function updateProfile(req, res) {
         birthDate: user.birthDate || null,
         gender: user.gender || "",
         bio: user.bio || "",
+        preferences: user.preferences || {},
       },
     });
   } catch (error) {
@@ -209,6 +223,40 @@ export async function updateProfile(req, res) {
     res.status(500).json({ error: "Internal server error" });
   }
 }
+
+// Onboarding management
+export async function getOnboardingStatus(req, res) {
+  try {
+    const user = req.user;
+
+    res.status(200).json({
+      onboardingCompleted: user.onboardingCompleted || false,
+      needsOnboarding: !user.onboardingCompleted,
+    });
+  } catch (error) {
+    console.error("Error in getOnboardingStatus controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+export async function completeOnboarding(req, res) {
+  try {
+    const user = req.user;
+
+    // Mark onboarding as completed
+    user.onboardingCompleted = true;
+    await user.save();
+
+    res.status(200).json({
+      message: "Onboarding completed successfully",
+      onboardingCompleted: true,
+    });
+  } catch (error) {
+    console.error("Error in completeOnboarding controller:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+}
+
 
 // Privacy Settings management
 export async function getPrivacySettings(req, res) {
