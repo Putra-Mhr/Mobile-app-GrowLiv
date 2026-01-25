@@ -114,7 +114,15 @@ function OrdersScreen() {
             const statusInfo = STATUS_ICONS[order.status] || STATUS_ICONS.pending;
 
             return (
-              <View key={order._id} className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-gray-100">
+              <TouchableOpacity
+                key={order._id}
+                className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-gray-100"
+                activeOpacity={0.9}
+                onPress={() => router.push({
+                  pathname: "/(profile)/order-detail",
+                  params: { order: JSON.stringify(order) }
+                })}
+              >
                 {/* Order Header */}
                 <View className="flex-row items-center justify-between mb-3 pb-3 border-b border-gray-100">
                   <View className="flex-row items-center">
@@ -194,10 +202,14 @@ function OrdersScreen() {
 
                   {order.status === "delivered" &&
                     (order.hasReviewed ? (
-                      <View className="bg-green-50 px-4 py-2 rounded-xl flex-row items-center">
-                        <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-                        <Text className="text-green-600 font-semibold text-sm ml-1">Sudah Direview</Text>
-                      </View>
+                      <TouchableOpacity
+                        className="bg-green-50 px-4 py-2 rounded-xl flex-row items-center"
+                        onPress={() => handleOpenRating(order)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="create-outline" size={16} color="#22C55E" />
+                        <Text className="text-green-600 font-semibold text-sm ml-1">Ubah Review</Text>
+                      </TouchableOpacity>
                     ) : (
                       <TouchableOpacity
                         className="overflow-hidden rounded-xl"
@@ -214,7 +226,7 @@ function OrdersScreen() {
                       </TouchableOpacity>
                     ))}
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>

@@ -42,6 +42,11 @@ export const orderApi = {
     const { data } = await axiosInstance.post(`/payment/manual-verify/${orderId}`);
     return data;
   },
+
+  delete: async (orderId) => {
+    const { data } = await axiosInstance.delete(`/admin/orders/${orderId}`);
+    return data;
+  },
 };
 
 export const statsApi = {

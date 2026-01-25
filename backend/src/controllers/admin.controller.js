@@ -192,6 +192,31 @@ export async function updateOrderStatus(req, res) {
 
     await order.save();
 
+    // Add tracking history based on status
+    let title = "Status Diperbarui";
+    let description = `Status pesanan diubah menjadi ${status}`;
+
+    if (status === "shipped") {
+      title = "Pesanan Dikirim";
+      description = "Pesanan Anda sedang dalam pengiriman ke alamat tujuan";
+    } else if (status === "delivered") {
+      title = "Pesanan Tiba";
+      description = "Pesanan telah diterima di alamat tujuan. Terima kasih telah berbelanja!";
+    } else if (status === "canceled") {
+      title = "Pesanan Dibatalkan";
+      description = "Pesanan dibatalkan oleh admin";
+    }
+
+    // Push to tracking history
+    order.trackingHistory.push({
+      status,
+      title,
+      description,
+      timestamp: new Date(),
+    });
+
+    await order.save();
+
     res.status(200).json({ message: "Order status updated successfully", order });
   } catch (error) {
     console.error("Error in updateOrderStatus controller:", error);
@@ -263,5 +288,22 @@ export const deleteProduct = async (req, res) => {
   } catch (error) {
     console.error("Error deleting product:", error);
     res.status(500).json({ message: "Failed to delete product" });
+  }
+};
+
+export const deleteOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    await Order.findByIdAndDelete(orderId);
+    res.status(200).json({ message: "Order deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting order:", error);
+    res.status(500).json({ message: "Failed to delete order" });
   }
 };
