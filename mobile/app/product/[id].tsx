@@ -72,7 +72,7 @@ const ReviewCard = ({ review }: { review: Review }) => {
 const ProductDetailScreen = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: product, isError, isLoading } = useProduct(id);
-  const { reviews, reviewStats, createReview, isCreatingReview } = useProductReviews(id || "");
+  const { reviews, reviewStats } = useProductReviews(id || "");
   const { addToCart, isAddingToCart } = useCart();
   const { showToast } = useNotification();
 
@@ -81,8 +81,7 @@ const ProductDetailScreen = () => {
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewComment, setReviewComment] = useState("");
+
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -101,25 +100,7 @@ const ProductDetailScreen = () => {
     );
   };
 
-  const handleSubmitReview = () => {
-    if (reviewRating === 0) {
-      showToast('warning', 'Rating Diperlukan', 'Silakan pilih rating bintang');
-      return;
-    }
-    createReview(
-      { productId: id || "", rating: reviewRating, comment: reviewComment },
-      {
-        onSuccess: () => {
-          showToast('success', 'Review Terkirim!', 'Terima kasih atas feedback Anda');
-          setReviewRating(0);
-          setReviewComment("");
-        },
-        onError: () => {
-          showToast('error', 'Gagal', 'Tidak dapat mengirim review');
-        },
-      }
-    );
-  };
+
 
   if (isLoading) return <LoadingUI />;
   if (isError || !product) return <ErrorUI />;
@@ -307,58 +288,7 @@ const ProductDetailScreen = () => {
             </View>
           </View>
 
-          {/* Write Review Section */}
-          <View className="bg-gray-50 rounded-2xl p-4 mb-6">
-            <Text className="text-gray-800 text-lg font-bold mb-4">Tulis Review</Text>
-
-            {/* Star Rating Input */}
-            <View className="flex-row items-center mb-4">
-              <Text className="text-gray-600 mr-3">Rating Anda:</Text>
-              <View className="flex-row gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => setReviewRating(star)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={star <= reviewRating ? "star" : "star-outline"}
-                      size={32}
-                      color={star <= reviewRating ? "#F59E0B" : "#D1D5DB"}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Comment Input */}
-            <TextInput
-              className="bg-white border border-gray-200 rounded-xl p-4 text-gray-800 min-h-24"
-              placeholder="Bagikan pengalaman Anda dengan produk ini..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              textAlignVertical="top"
-              value={reviewComment}
-              onChangeText={setReviewComment}
-            />
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              className="mt-4 bg-green-500 rounded-xl py-3 items-center"
-              onPress={handleSubmitReview}
-              disabled={isCreatingReview}
-              activeOpacity={0.8}
-            >
-              {isCreatingReview ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <View className="flex-row items-center">
-                  <Ionicons name="send" size={18} color="#FFFFFF" />
-                  <Text className="text-white font-bold ml-2">Kirim Review</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Write Review Section Removed - User must purchase to review via Order History */}
 
           {/* User Reviews List */}
           {reviews.length > 0 && (

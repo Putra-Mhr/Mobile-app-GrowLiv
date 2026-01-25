@@ -62,7 +62,11 @@ export async function handleMidtransNotification(req, res) {
             transactionStatus === "expire"
         ) {
             // Payment failed/cancelled
-            order.status = "canceled";
+            // Only update status to canceled if it was already visible (not awaiting_payment)
+            // If it was awaiting_payment (hidden), we keep it hidden (or could delete it)
+            if (order.status !== 'awaiting_payment') {
+                order.status = "canceled";
+            }
             order.paymentResult.status = transactionStatus;
             await order.save();
             console.log("❌ Payment failed/cancelled for order:", order._id);

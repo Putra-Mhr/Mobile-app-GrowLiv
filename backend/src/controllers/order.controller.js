@@ -47,7 +47,11 @@ export async function createOrder(req, res) {
 
 export async function getUserOrders(req, res) {
   try {
-    const orders = await Order.find({ clerkId: req.user.clerkId })
+    // Filter out orders that are just initialized but not paid (awaiting_payment)
+    const orders = await Order.find({
+      clerkId: req.user.clerkId,
+      status: { $ne: 'awaiting_payment' }
+    })
       .populate("orderItems.product")
       .sort({ createdAt: -1 });
 

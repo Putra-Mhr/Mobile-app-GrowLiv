@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 
 interface RatingModalProps {
@@ -16,7 +17,9 @@ interface RatingModalProps {
   onClose: () => void;
   order: Order | null;
   productRatings: { [key: string]: number };
+  productComments: { [key: string]: string };
   onRatingChange: (productId: string, rating: number) => void;
+  onCommentChange: (productId: string, comment: string) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
 }
@@ -26,7 +29,9 @@ const RatingModal = ({
   onClose,
   order,
   productRatings,
+  productComments,
   onRatingChange,
+  onCommentChange,
   onSubmit,
   isSubmitting,
 }: RatingModalProps) => {
@@ -42,17 +47,18 @@ const RatingModal = ({
                   <Ionicons name="star" size={32} color="#1DB954" />
                 </View>
                 <Text className="text-text-primary text-2xl font-bold mb-1">
-                  Rate Your Products
+                  Beri Ulasan
                 </Text>
                 <Text className="text-text-secondary text-center text-sm">
-                  Rate each product from your order
+                  Bagaimana kualitas produk yang Anda terima?
                 </Text>
               </View>
 
-              <ScrollView className="mb-4">
+              <ScrollView className="mb-4" showsVerticalScrollIndicator={false}>
                 {order?.orderItems.map((item, index) => {
                   const productId = item.product._id;
                   const currentRating = productRatings[productId] || 0;
+                  const currentComment = productComments[productId] || "";
 
                   return (
                     <View
@@ -73,12 +79,13 @@ const RatingModal = ({
                             {item.name}
                           </Text>
                           <Text className="text-text-secondary text-xs mt-1">
-                            Qty: {item.quantity} • ${item.price?.toFixed(2) ?? "0.00"}
+                            {item.quantity} x Rp {item.price?.toLocaleString("id-ID")}
                           </Text>
                         </View>
                       </View>
 
-                      <View className="flex-row justify-center">
+                      {/* Stars */}
+                      <View className="flex-row justify-center mb-3">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <TouchableOpacity
                             key={star}
@@ -89,11 +96,22 @@ const RatingModal = ({
                             <Ionicons
                               name={star <= currentRating ? "star" : "star-outline"}
                               size={32}
-                              color={star <= currentRating ? "#1DB954" : "#666"}
+                              color={star <= currentRating ? "#1DB954" : "#D1D5DB"}
                             />
                           </TouchableOpacity>
                         ))}
                       </View>
+
+                      {/* Comment Input */}
+                      <TextInput
+                        className="bg-white border border-gray-200 rounded-xl p-3 text-sm min-h-[80px]"
+                        placeholder="Tulis ulasan Anda di sini..."
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                        textAlignVertical="top"
+                        value={currentComment}
+                        onChangeText={(text) => onCommentChange(productId, text)}
+                      />
                     </View>
                   );
                 })}
@@ -107,9 +125,9 @@ const RatingModal = ({
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#121212" />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text className="text-background font-bold text-base">Submit All Ratings</Text>
+                    <Text className="text-white font-bold text-base">Kirim Ulasan</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -118,7 +136,7 @@ const RatingModal = ({
                   onPress={onClose}
                   disabled={isSubmitting}
                 >
-                  <Text className="text-text-secondary font-bold text-base">Cancel</Text>
+                  <Text className="text-text-secondary font-bold text-base">Batal</Text>
                 </TouchableOpacity>
               </View>
             </View>

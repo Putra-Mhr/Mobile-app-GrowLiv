@@ -27,17 +27,21 @@ function OrdersScreen() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [productRatings, setProductRatings] = useState<{ [key: string]: number }>({});
+  const [productComments, setProductComments] = useState<{ [key: string]: string }>({});
 
   const handleOpenRating = (order: Order) => {
     setShowRatingModal(true);
     setSelectedOrder(order);
 
     const initialRatings: { [key: string]: number } = {};
+    const initialComments: { [key: string]: string } = {};
     order.orderItems.forEach((item) => {
       const productId = item.product._id;
       initialRatings[productId] = 0;
+      initialComments[productId] = "";
     });
     setProductRatings(initialRatings);
+    setProductComments(initialComments);
   };
 
   const handleSubmitRating = async () => {
@@ -56,6 +60,7 @@ function OrdersScreen() {
             productId: item.product._id,
             orderId: selectedOrder._id,
             rating: productRatings[item.product._id],
+            comment: productComments[item.product._id],
           });
         })
       );
@@ -64,6 +69,7 @@ function OrdersScreen() {
       setShowRatingModal(false);
       setSelectedOrder(null);
       setProductRatings({});
+      setProductComments({});
     } catch (error: any) {
       showToast('error', 'Gagal Mengirim', error?.response?.data?.error || 'Gagal mengirim rating');
     }
@@ -219,10 +225,14 @@ function OrdersScreen() {
         onClose={() => setShowRatingModal(false)}
         order={selectedOrder}
         productRatings={productRatings}
+        productComments={productComments}
         onSubmit={handleSubmitRating}
         isSubmitting={isCreatingReview}
         onRatingChange={(productId, rating) =>
           setProductRatings((prev) => ({ ...prev, [productId]: rating }))
+        }
+        onCommentChange={(productId, comment) =>
+          setProductComments((prev) => ({ ...prev, [productId]: comment }))
         }
       />
     </View>

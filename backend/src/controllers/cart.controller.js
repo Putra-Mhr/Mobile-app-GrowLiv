@@ -131,13 +131,16 @@ export async function removeFromCart(req, res) {
 
 export const clearCart = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ clerkId: req.user.clerkId });
-    if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
-    }
+    // Use atomic update to avoid VersionError (race conditions)
+    const cart = await Cart.findOneAndUpdate(
+      { clerkId: req.user.clerkId },
+      { $set: { items: [] } },
+      { new: true } // Return the updated document
+    );
 
-    cart.items = [];
-    await cart.save();
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
 
     res.status(200).json({ message: "Cart cleared", cart });
   } catch (error) {
@@ -145,3 +148,36 @@ export const clearCart = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+export async function calculateShipping(req, res) {
+  try {
+    const { coordinates } = req.body;
+
+    if (!coordinates?.latitude || !coordinates?.longitude) {
+      return res.status(400).json({ error: "Coordinates required" });
+    }
+
+    const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(200).json({ total: 0, breakdown: [] });
+    }
+
+    // Reuse the existing service which is already used in payment controller
+    const { calculateCartShipping } = await import("../services/shipping.service.js");
+
+    let shipping;
+    try {
+      shipping = calculateCartShipping(cart.items, coordinates);
+    } catch (calcError) {
+      console.warn("Shipping calc failed (probably missing location data), defaulting to flat rate:", calcError.message);
+
+      return res.status(400).json({ error: calcError.message });
+    }
+
+    res.status(200).json(shipping);
+  } catch (error) {
+    console.error("Error in calculateShipping controller:", error);
+    res.status(500).json({ error: "Failed to calculate shipping" });
+  }
+}

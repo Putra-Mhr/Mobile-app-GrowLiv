@@ -20,16 +20,7 @@ function OrdersPage() {
   });
 
   const manualVerifyMutation = useMutation({
-    mutationFn: async (orderId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/payment/manual-verify/${orderId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('clerk-token')}`,
-        },
-      });
-      if (!response.ok) throw new Error('Failed to verify payment');
-      return response.json();
-    },
+    mutationFn: orderApi.manualVerify,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       alert('✅ Payment verified successfully!');

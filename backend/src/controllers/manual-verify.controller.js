@@ -44,11 +44,15 @@ export async function manualVerifyPayment(req, res) {
         }
 
         // Clear user cart
-        await Cart.findOneAndUpdate(
-            { user: order.user },
-            { $set: { items: [] } }
-        );
-        console.log("🛒 Cart cleared for user:", order.user);
+        try {
+            await Cart.findOneAndUpdate(
+                { user: order.user },
+                { $set: { items: [] } }
+            );
+            console.log("🛒 Cart cleared for user:", order.user);
+        } catch (cartError) {
+            console.error("⚠️ Failed to clear cart during manual verify (ignoring):", cartError);
+        }
 
         await order.save();
         console.log("✅ Order marked as paid:", order._id);
