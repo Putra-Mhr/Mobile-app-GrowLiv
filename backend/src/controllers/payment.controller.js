@@ -129,7 +129,7 @@ export async function createSnapTransaction(req, res) {
         status: "pending",
       },
       totalPrice: total,
-      status: "pending",
+      status: "awaiting_payment", // Changed from "pending" to hide from user history
       isPaid: false, // Explicitly set to false
     });
 
@@ -144,6 +144,12 @@ export async function createSnapTransaction(req, res) {
     });
   } catch (error) {
     console.error("Error creating Midtrans transaction:", error);
-    res.status(500).json({ error: "Failed to create payment transaction" });
+    if (error.name === 'ValidationError') {
+      console.error("Validation Details:", JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({
+      error: "Failed to create payment transaction",
+      details: error.message
+    });
   }
 }

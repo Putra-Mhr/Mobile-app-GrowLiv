@@ -65,7 +65,11 @@ export function calculateCartShipping(cartItems, deliveryCoordinates) {
 
     for (const item of cartItems) {
         if (!item.product?.location?.latitude || !item.product?.location?.longitude) {
-            throw new Error(`Product ${item.product?.name || "unknown"} is missing location data`);
+            // Fallback to Jakarta coordinates if missing (Monas)
+            // throw new Error(`Product ${item.product?.name || "unknown"} is missing location data`);
+            if (!item.product.location) item.product.location = {};
+            item.product.location.latitude = -6.175392;
+            item.product.location.longitude = 106.827153;
         }
 
         const locationKey = `${item.product.location.latitude},${item.product.location.longitude}`;

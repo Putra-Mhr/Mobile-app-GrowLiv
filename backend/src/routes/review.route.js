@@ -13,7 +13,8 @@ const router = Router();
 router.get("/product/:productId", getProductReviews);
 
 // Create review for a product (from product page - no order required)
-router.post("/product", protectRoute, createProductReview);
+// Create review for a product (from product page - no order required)
+// router.post("/product", protectRoute, createProductReview); // Deprecated: Reviews must be linked to orders
 
 // Create review for an order item (original - requires delivered order)
 router.post("/", protectRoute, createReview);

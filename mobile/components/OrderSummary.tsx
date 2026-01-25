@@ -5,9 +5,10 @@ interface OrderSummaryProps {
   shipping: number;
   tax: number;
   total: number;
+  isEstimate?: boolean;
 }
 
-export default function OrderSummary({ subtotal, shipping, tax, total }: OrderSummaryProps) {
+export default function OrderSummary({ subtotal, shipping, tax, total, isEstimate }: OrderSummaryProps) {
   return (
     <View className="px-5 mt-6">
       <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -23,9 +24,15 @@ export default function OrderSummary({ subtotal, shipping, tax, total }: OrderSu
 
           <View className="flex-row justify-between items-center">
             <Text className="text-gray-500 text-base">Ongkos Kirim</Text>
-            <Text className="text-gray-800 font-semibold text-base">
-              Rp {shipping.toLocaleString("id-ID")}
-            </Text>
+            {isEstimate && shipping === 0 ? (
+              <Text className="text-orange-500 font-medium text-sm italic">
+                Dihitung saat checkout
+              </Text>
+            ) : (
+              <Text className="text-gray-800 font-semibold text-base">
+                Rp {shipping.toLocaleString("id-ID")}
+              </Text>
+            )}
           </View>
 
           <View className="flex-row justify-between items-center">

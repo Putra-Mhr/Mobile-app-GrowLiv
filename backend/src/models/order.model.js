@@ -51,6 +51,10 @@ const shippingAddressSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  coordinates: {
+    latitude: Number,
+    longitude: Number,
+  },
 });
 
 const orderSchema = new mongoose.Schema(
@@ -80,7 +84,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "shipped", "delivered", "canceled"],
+      enum: ["awaiting_payment", "payment_failed", "pending", "shipped", "delivered", "canceled"],
       default: "pending",
     },
     isPaid: {

@@ -2,7 +2,7 @@ import { useAddresses } from "@/hooks/useAddresses";
 import useCart from "@/hooks/useCart";
 import { useApi } from "@/lib/api";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -36,11 +36,41 @@ const CartScreen = () => {
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [midtransVisible, setMidtransVisible] = useState(false);
   const [midtransUrl, setMidtransUrl] = useState<string | null>(null);
+  const [shippingCost, setShippingCost] = useState(0);
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+
+  // Set default address on load
+  useEffect(() => {
+    if (addresses && addresses.length > 0 && !selectedAddress) {
+      const defaultAddr = addresses.find(a => a.isDefault) || addresses[0];
+      setSelectedAddress(defaultAddr);
+    }
+  }, [addresses]);
+
+  // Calculate shipping cost when selectedAddress changes
+  useEffect(() => {
+    const calculateShipping = async () => {
+      if (!selectedAddress?.coordinates) return;
+
+      try {
+        const { data } = await api.post("/cart/shipping", {
+          coordinates: selectedAddress.coordinates
+        });
+        if (data && typeof data.total === 'number') {
+          setShippingCost(data.total);
+        }
+      } catch (error) {
+        console.error("Failed to calculate shipping:", error);
+      }
+    };
+
+    calculateShipping();
+  }, [selectedAddress]);
 
   const cartItems = cart?.items || [];
   const subtotal = cartTotal;
-  const shipping = 15000;
-  const tax = 1500;
+  const shipping = shippingCost;
+  const tax = Math.round(subtotal * 0.08); // 8% estimated tax
   const total = subtotal + shipping + tax;
 
   const handleQuantityChange = (productId: string, currentQuantity: number, change: number) => {
@@ -60,32 +90,26 @@ const CartScreen = () => {
     });
   };
 
-  const handleCheckout = () => {
+  const handlePayment = async () => {
     if (cartItems.length === 0) return;
 
-    if (!addresses || addresses.length === 0) {
+    if (!selectedAddress) {
       showConfirmation({
-        title: 'Belum Ada Alamat',
-        message: 'Tambahkan alamat pengiriman terlebih dahulu di menu profil.',
+        title: 'Alamat Diperlukan',
+        message: 'Pilih alamat pengiriman terlebih dahulu.',
         type: 'info',
-        confirmText: 'OK',
-        onConfirm: () => { },
+        confirmText: 'Pilih Alamat',
+        onConfirm: () => setAddressModalVisible(true),
       });
       return;
     }
 
-    setAddressModalVisible(true);
-  };
-
-  const handleProceedWithPayment = async (selectedAddress: Address) => {
-    setAddressModalVisible(false);
-
-    // Validate address has coordinates for shipping calculation
+    // Validate address has coordinates
     if (!selectedAddress.coordinates?.latitude || !selectedAddress.coordinates?.longitude) {
       showToast(
         'warning',
         'Lokasi Diperlukan',
-        'Mohon update alamat Anda dengan memilih lokasi di peta untuk menghitung ongkir'
+        'Alamat yang dipilih tidak memiliki lokasi peta. Mohon ubah atau update alamat.',
       );
       return;
     }
@@ -108,7 +132,7 @@ const CartScreen = () => {
           state: selectedAddress.state,
           zipCode: selectedAddress.zipCode,
           phoneNumber: selectedAddress.phoneNumber,
-          coordinates: selectedAddress.coordinates, // Include coordinates
+          coordinates: selectedAddress.coordinates,
         },
       });
 
@@ -123,10 +147,7 @@ const CartScreen = () => {
       console.error("Payment failed", {
         error: error instanceof Error ? error.message : "Unknown error",
         response: error?.response?.data,
-        cartTotal: total,
-        itemCount: cartItems.length,
       });
-
       const errorMessage = error?.response?.data?.error || 'Gagal memproses pembayaran. Silakan coba lagi.';
       showToast('error', 'Pembayaran Gagal', errorMessage);
     } finally {
@@ -137,41 +158,29 @@ const CartScreen = () => {
   const handleMidtransSuccess = (orderId: string) => {
     setMidtransVisible(false);
     console.log('✅ Payment success for order:', orderId);
-
-    // Refetch cart (should be empty after webhook clears it)
+    clearCart();
     refetch();
-
     showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
-
-    // Use replace instead of push to avoid navigation stack buildup
-    router.replace({
-      pathname: '/(profile)/orders',
-      params: { orderId }
-    });
+    router.replace({ pathname: '/(profile)/orders', params: { orderId } });
   };
 
   const handleMidtransPending = (orderId: string) => {
     setMidtransVisible(false);
     console.log('⏳ Payment pending for order:', orderId);
-
+    clearCart();
     refetch();
-
     showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
-
-    // Use replace to avoid double back
     router.replace('/(profile)/orders');
   };
 
   const handleMidtransError = () => {
     setMidtransVisible(false);
-    console.log('❌ Payment cancelled/error');
     showToast('error', 'Pembayaran Dibatalkan', 'Anda membatalkan pembayaran.');
   };
 
   if (isLoading) return <LoadingUI />;
   if (isError) return <ErrorUI />;
   if (cartItems.length === 0) return <EmptyUI />;
-
 
   return (
     <View className="flex-1">
@@ -207,7 +216,6 @@ const CartScreen = () => {
           {cartItems.map((item, index) => (
             <View key={item._id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
               <View className="p-4 flex-row">
-                {/* Product Image with Fresh Badge */}
                 <View className="relative">
                   <Image
                     source={item.product?.images?.[0] || { uri: "https://via.placeholder.com/100" }}
@@ -215,7 +223,6 @@ const CartScreen = () => {
                     contentFit="cover"
                     style={{ width: 90, height: 90, borderRadius: 12 }}
                   />
-                  {/* Fresh indicator */}
                   <View className="absolute -top-1 -left-1 bg-green-500 rounded-full p-1">
                     <Ionicons name="leaf" size={10} color="#FFFFFF" />
                   </View>
@@ -223,10 +230,7 @@ const CartScreen = () => {
 
                 <View className="flex-1 ml-4 justify-between">
                   <View>
-                    <Text
-                      className="text-gray-800 font-bold text-base leading-tight"
-                      numberOfLines={2}
-                    >
+                    <Text className="text-gray-800 font-bold text-base leading-tight" numberOfLines={2}>
                       {item.product?.name || "Unknown Product"}
                     </Text>
                     <Text className="text-green-600 font-bold text-lg mt-1">
@@ -270,7 +274,53 @@ const CartScreen = () => {
           ))}
         </View>
 
-        <OrderSummary subtotal={subtotal} shipping={shipping} tax={tax} total={total} />
+        {/* Address Selection Card */}
+        <View className="px-5 mt-6">
+          <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <Ionicons name="location" size={20} color="#22C55E" />
+                <Text className="text-gray-800 text-lg font-bold ml-2">Alamat Pengiriman</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAddressModalVisible(true)}
+              >
+                <Text className="text-green-600 font-bold text-sm">
+                  {selectedAddress ? "Ubah" : "Pilih"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedAddress ? (
+              <View>
+                <View className="flex-row items-center mb-1">
+                  <Text className="font-bold text-gray-800 mr-2">{selectedAddress.label}</Text>
+                  {selectedAddress.isDefault && (
+                    <View className="bg-green-100 px-2 py-0.5 rounded">
+                      <Text className="text-green-700 text-xs font-bold">Utama</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-gray-600 font-medium">{selectedAddress.fullName}</Text>
+                <Text className="text-gray-500 text-xs mt-1">{selectedAddress.phoneNumber}</Text>
+                <Text className="text-gray-500 text-sm mt-1" numberOfLines={2}>
+                  {selectedAddress.streetAddress}, {selectedAddress.city}
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setAddressModalVisible(true)}
+                className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-4 items-center justify-center"
+              >
+                <Ionicons name="add-circle-outline" size={24} color="#9CA3AF" />
+                <Text className="text-gray-400 font-medium mt-1">Pilih Alamat Pengiriman</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        <OrderSummary subtotal={subtotal} shipping={shipping} tax={tax} total={total} isEstimate={!selectedAddress} />
       </ScrollView>
 
       {/* Bottom Checkout Section */}
@@ -296,7 +346,7 @@ const CartScreen = () => {
           className="overflow-hidden rounded-2xl shadow-lg"
           style={{ shadowColor: "#22C55E", shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 }}
           activeOpacity={0.9}
-          onPress={handleCheckout}
+          onPress={handlePayment}
           disabled={paymentLoading}
         >
           <LinearGradient
@@ -320,8 +370,11 @@ const CartScreen = () => {
       <AddressSelectionModal
         visible={addressModalVisible}
         onClose={() => setAddressModalVisible(false)}
-        onProceed={handleProceedWithPayment}
-        isProcessing={paymentLoading}
+        onProceed={(address) => {
+          setSelectedAddress(address);
+          setAddressModalVisible(false);
+        }}
+        isProcessing={false}
       />
 
       <MidtransPayment

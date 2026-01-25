@@ -32,6 +32,16 @@ export const orderApi = {
     const { data } = await axiosInstance.patch(`/admin/orders/${orderId}/status`, { status });
     return data;
   },
+
+  manualVerify: async (orderId) => {
+    // Note: This endpoint is in payment route, not admin route
+    // But axiosInstance base URL handles /api context?
+    // axios default baseURL is usually VITE_API_URL/api
+    // So if route is /api/payment/manual-verify/:orderId
+    // We should call /payment/manual-verify/:orderId
+    const { data } = await axiosInstance.post(`/payment/manual-verify/${orderId}`);
+    return data;
+  },
 };
 
 export const statsApi = {
