@@ -113,6 +113,14 @@ async function handleSuccessfulPayment(order, notification) {
         );
         console.log("🛒 Cart cleared for user:", order.user);
 
+        // Add tracking history
+        order.trackingHistory.push({
+            status: "pending",
+            title: "Pembayaran Berhasil",
+            description: "Pembayaran telah diverifikasi, pesanan akan segera diproses",
+            timestamp: new Date(),
+        });
+
         await order.save();
         console.log("✅ Order marked as paid:", order._id);
     } catch (error) {

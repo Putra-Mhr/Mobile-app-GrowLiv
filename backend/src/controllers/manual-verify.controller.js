@@ -54,6 +54,14 @@ export async function manualVerifyPayment(req, res) {
             console.error("⚠️ Failed to clear cart during manual verify (ignoring):", cartError);
         }
 
+        // Add tracking history
+        order.trackingHistory.push({
+            status: "pending",
+            title: "Pembayaran Diverifikasi Manual",
+            description: "Pembayaran telah diverifikasi oleh admin",
+            timestamp: new Date(),
+        });
+
         await order.save();
         console.log("✅ Order marked as paid:", order._id);
 

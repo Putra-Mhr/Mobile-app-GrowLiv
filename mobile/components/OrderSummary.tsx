@@ -3,12 +3,12 @@ import { View, Text } from "react-native";
 interface OrderSummaryProps {
   subtotal: number;
   shipping: number;
-  tax: number;
+  adminFee: number;
   total: number;
   isEstimate?: boolean;
 }
 
-export default function OrderSummary({ subtotal, shipping, tax, total, isEstimate }: OrderSummaryProps) {
+export default function OrderSummary({ subtotal, shipping, adminFee, total, isEstimate }: OrderSummaryProps) {
   return (
     <View className="px-5 mt-6">
       <View className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -38,7 +38,7 @@ export default function OrderSummary({ subtotal, shipping, tax, total, isEstimat
           <View className="flex-row justify-between items-center">
             <Text className="text-gray-500 text-base">Biaya Admin</Text>
             <Text className="text-gray-800 font-semibold text-base">
-              Rp {Math.round(tax).toLocaleString("id-ID")}
+              Rp {adminFee.toLocaleString("id-ID")}
             </Text>
           </View>
 

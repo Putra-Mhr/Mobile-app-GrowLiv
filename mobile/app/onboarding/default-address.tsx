@@ -8,12 +8,14 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useApi } from "@/lib/api";
 import { useNotification } from "@/context/NotificationContext";
+import { SimpleMapPicker } from "@/components/SimpleMapPicker";
 
 const DefaultAddressScreen = () => {
     const api = useApi();
@@ -27,11 +29,19 @@ const DefaultAddressScreen = () => {
     const [state, setState] = useState("");
     const [zipCode, setZipCode] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
+    // New state for map
+    const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [showMap, setShowMap] = useState(false);
 
     const handleComplete = async () => {
         // Validate required fields
         if (!fullName.trim() || !streetAddress.trim() || !city.trim() || !state.trim() || !zipCode.trim() || !phoneNumber.trim()) {
-            showToast("error", "Data Belum Lengkap", "Semua field wajib diisi");
+            showToast("error", "Data Belum Lengkap", "Semua field teks wajib diisi");
+            return;
+        }
+
+        if (!coordinates) {
+            showToast("error", "Lokasi Belum Dipilih", "Silakan pilih titik lokasi di peta");
             return;
         }
 
@@ -47,10 +57,7 @@ const DefaultAddressScreen = () => {
                 state: state.trim(),
                 zipCode: zipCode.trim(),
                 phoneNumber: phoneNumber.trim(),
-                coordinates: {
-                    latitude: -6.2088, // Jakarta default, user can edit later
-                    longitude: 106.8456,
-                },
+                coordinates, // Use selected coordinates
                 isDefault: true,
             });
 
@@ -205,18 +212,51 @@ const DefaultAddressScreen = () => {
                             </View>
                         </View>
 
-                        {/* Info Box */}
-                        <View className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mt-2">
-                            <View className="flex-row items-start">
-                                <Ionicons name="information-circle" size={20} color="#3B82F6" />
-                                <Text className="flex-1 text-blue-700 text-sm ml-2">
-                                    Anda bisa mengedit dan menambahkan koordinat peta nanti di menu Profil → Alamat
-                                </Text>
-                            </View>
+                        {/* Map Picker Button */}
+                        <View className="mb-6">
+                            <Text className="text-gray-700 font-semibold mb-2 ml-1">Lokasi Peta *</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowMap(true)}
+                                className="bg-white rounded-2xl border border-gray-200 p-4 flex-row items-center justify-between"
+                                activeOpacity={0.7}
+                            >
+                                <View className="flex-row items-center flex-1 mr-2">
+                                    <View className={`p-2 rounded-full ${coordinates ? "bg-green-100" : "bg-gray-100"}`}>
+                                        <Ionicons
+                                            name={coordinates ? "location" : "map-outline"}
+                                            size={20}
+                                            color={coordinates ? "#16A34A" : "#9CA3AF"}
+                                        />
+                                    </View>
+                                    <View className="ml-3 flex-1">
+                                        <Text className={`font-semibold ${coordinates ? "text-gray-800" : "text-gray-500"}`}>
+                                            {coordinates ? "Lokasi Terpilih" : "Pilih Titik Lokasi"}
+                                        </Text>
+                                        <Text className="text-gray-500 text-xs mt-0.5" numberOfLines={1}>
+                                            {coordinates
+                                                ? `${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`
+                                                : "Tap untuk membuka peta"
+                                            }
+                                        </Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            <Modal visible={showMap} animationType="slide" onRequestClose={() => setShowMap(false)}>
+                <SimpleMapPicker
+                    initialCoordinates={coordinates || undefined}
+                    onLocationSelect={(coords) => {
+                        setCoordinates(coords);
+                        setShowMap(false);
+                    }}
+                    onCancel={() => setShowMap(false)}
+                />
+            </Modal>
 
             {/* Bottom Navigation */}
             <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-5 py-4 pb-8">

@@ -30,6 +30,17 @@ function OrdersPage() {
     },
   });
 
+  const deleteOrderMutation = useMutation({
+    mutationFn: orderApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      alert('✅ Order deleted successfully!');
+    },
+    onError: (error) => {
+      alert('❌ Failed to delete order: ' + error.message);
+    },
+  });
+
   const handleStatusChange = (orderId, newStatus) => {
     updateStatusMutation.mutate({ orderId, status: newStatus });
   };
@@ -146,17 +157,34 @@ function OrdersPage() {
                                   Unpaid
                                 </span>
                                 {/* TEMPORARY: Manual verify button for testing */}
-                                <button
-                                  onClick={() => handleManualVerify(order._id)}
-                                  className="btn btn-xs btn-success gap-1"
-                                  disabled={manualVerifyMutation.isPending}
-                                >
-                                  {manualVerifyMutation.isPending ? (
-                                    <span className="loading loading-spinner loading-xs"></span>
-                                  ) : (
-                                    <>✓ Verify</>
-                                  )}
-                                </button>
+                                <div className="flex flex-row gap-1">
+                                  <button
+                                    onClick={() => handleManualVerify(order._id)}
+                                    className="btn btn-xs btn-success gap-1"
+                                    disabled={manualVerifyMutation.isPending}
+                                  >
+                                    {manualVerifyMutation.isPending ? (
+                                      <span className="loading loading-spinner loading-xs"></span>
+                                    ) : (
+                                      <>✓ Verify</>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Are you sure you want to cancel and delete this order? This action cannot be undone.')) {
+                                        deleteOrderMutation.mutate(order._id);
+                                      }
+                                    }}
+                                    className="btn btn-xs btn-error gap-1 text-white"
+                                    disabled={deleteOrderMutation.isPending}
+                                  >
+                                    {deleteOrderMutation.isPending ? (
+                                      <span className="loading loading-spinner loading-xs"></span>
+                                    ) : (
+                                      <>✕ Cancel</>
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>

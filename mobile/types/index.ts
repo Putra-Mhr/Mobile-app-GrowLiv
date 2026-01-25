@@ -63,7 +63,13 @@ export interface Order {
     status: string;
   };
   totalPrice: number;
-  status: "pending" | "shipped" | "delivered";
+  status: "pending" | "shipped" | "delivered" | "canceled";
+  trackingHistory?: {
+    status: string;
+    title: string;
+    description: string;
+    timestamp: string;
+  }[];
   hasReviewed: boolean;
   createdAt: string;
   updatedAt: string;

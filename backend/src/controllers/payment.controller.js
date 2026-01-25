@@ -56,8 +56,8 @@ export async function createSnapTransaction(req, res) {
     }
 
     const shipping = shippingCalculation.total;
-    const tax = Math.round(subtotal * 0.08); // 8% - rounding is important for Midtrans
-    const total = subtotal + shipping + tax;
+    const admin = 1500; // 1500 - for admin fee
+    const total = subtotal + shipping + admin;
 
     if (total <= 0) {
       return res.status(400).json({ error: "Invalid order total" });
@@ -83,10 +83,10 @@ export async function createSnapTransaction(req, res) {
           name: "Shipping Cost",
         },
         {
-          id: "TAX",
-          price: tax,
+          id: "admin",
+          price: admin,
           quantity: 1,
-          name: "Tax (8%)",
+          name: "admin fee",
         },
       ],
       customer_details: {
@@ -131,6 +131,13 @@ export async function createSnapTransaction(req, res) {
       totalPrice: total,
       status: "awaiting_payment", // Changed from "pending" to hide from user history
       isPaid: false, // Explicitly set to false
+      trackingHistory: [
+        {
+          status: "awaiting_payment",
+          title: "Menunggu Pembayaran",
+          description: "Pesanan dibuat, menunggu pembayaran",
+        },
+      ],
     });
 
     console.log("✅ Pending order created:", order._id);

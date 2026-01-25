@@ -100,6 +100,14 @@ const orderSchema = new mongoose.Schema(
     shippedAt: {
       type: Date,
     },
+    trackingHistory: [
+      {
+        status: { type: String, required: true },
+        title: { type: String, required: true },
+        description: { type: String },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

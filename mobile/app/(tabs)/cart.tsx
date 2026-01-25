@@ -70,8 +70,8 @@ const CartScreen = () => {
   const cartItems = cart?.items || [];
   const subtotal = cartTotal;
   const shipping = shippingCost;
-  const tax = Math.round(subtotal * 0.08); // 8% estimated tax
-  const total = subtotal + shipping + tax;
+  const adminFee = 1500; // Flat admin fee
+  const total = subtotal + shipping + adminFee;
 
   const handleQuantityChange = (productId: string, currentQuantity: number, change: number) => {
     const newQuantity = currentQuantity + change;
@@ -320,7 +320,7 @@ const CartScreen = () => {
           </View>
         </View>
 
-        <OrderSummary subtotal={subtotal} shipping={shipping} tax={tax} total={total} isEstimate={!selectedAddress} />
+        <OrderSummary subtotal={subtotal} shipping={shipping} adminFee={adminFee} total={total} isEstimate={!selectedAddress} />
       </ScrollView>
 
       {/* Bottom Checkout Section */}

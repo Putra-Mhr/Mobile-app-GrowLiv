@@ -8,6 +8,7 @@ import {
   updateOrderStatus,
   updateProduct,
   deleteProduct,
+  deleteOrder,
 } from "../controllers/admin.controller.js";
 import { adminOnly, protectRoute } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
@@ -24,6 +25,7 @@ router.delete("/products/:id", deleteProduct);
 
 router.get("/orders", getAllOrders);
 router.patch("/orders/:orderId/status", updateOrderStatus);
+router.delete("/orders/:orderId", deleteOrder);
 
 router.get("/customers", getAllCustomers);
 

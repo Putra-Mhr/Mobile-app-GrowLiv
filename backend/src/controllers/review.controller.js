@@ -110,9 +110,9 @@ export async function createReview(req, res) {
       return res.status(400).json({ error: "Product not found in this order" });
     }
 
-    // atomic update or create
+    // atomic update or create - scoped to PRODUCT (updates existing review if found)
     const review = await Review.findOneAndUpdate(
-      { productId, userId: user._id },
+      { productId, userId: user._id }, // Find by User + Product only
       { rating, comment: comment || "", orderId, productId, userId: user._id },
       { new: true, upsert: true, runValidators: true }
     );
@@ -126,7 +126,12 @@ export async function createReview(req, res) {
     res.status(201).json({ message: "Review submitted successfully", review });
   } catch (error) {
     console.error("Error in createReview controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    // Return detailed error for debugging
+    res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+      code: error.code
+    });
   }
 }
 
