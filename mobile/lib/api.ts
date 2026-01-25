@@ -31,12 +31,12 @@ export const useApi = () => {
       async (config) => {
         try {
           const token = await getToken();
-          console.log("API Request - Token exists:", !!token);
+
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
           }
         } catch (error) {
-          console.log("Failed to get auth token:", error);
+
         }
         return config;
       },

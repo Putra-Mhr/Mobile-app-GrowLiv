@@ -60,50 +60,28 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
 
     return (
       <TouchableOpacity
-        style={{
-          width: "48%",
-          backgroundColor: bgColor,
-          borderRadius: 16,
-          overflow: "hidden",
-          marginBottom: 12,
-        }}
+        className={`w-[48%] rounded-2xl overflow-hidden mb-3 ${index % 2 === 0 ? "bg-yellow-100" : "bg-green-100"
+          }`}
         activeOpacity={0.8}
         onPress={() => router.push(`/product/${product._id}`)}
       >
         <View className="relative">
           <Image
             source={{ uri: product.images[0] }}
-            style={{ width: "100%", height: 140, backgroundColor: "#F3F4F6" }}
+            className="w-full h-[140px] bg-gray-100"
             resizeMode="cover"
           />
 
           {/* NEW Badge - only show for products created within 24 hours */}
           {isNewProduct() && (
-            <View
-              style={{
-                position: "absolute",
-                top: 8,
-                left: 8,
-                backgroundColor: "#22C55E",
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 4,
-              }}
-            >
-              <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>NEW</Text>
+            <View className="absolute top-2 left-2 bg-green-500 px-2 py-1 rounded">
+              <Text className="text-white text-[10px] font-bold">NEW</Text>
             </View>
           )}
 
           {/* Wishlist Button */}
           <TouchableOpacity
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              backgroundColor: "rgba(255,255,255,0.9)",
-              padding: 6,
-              borderRadius: 20,
-            }}
+            className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-full"
             activeOpacity={0.7}
             onPress={() => toggleWishlist(product._id)}
             disabled={isAddingToWishlist || isRemovingFromWishlist}
@@ -120,29 +98,29 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
           </TouchableOpacity>
         </View>
 
-        <View style={{ padding: 12 }}>
-          <Text style={{ color: "#22C55E", fontSize: 10, fontWeight: "500", marginBottom: 4 }}>
+        <View className="p-3">
+          <Text className="text-green-600 text-[10px] font-medium mb-1">
             {product.category.toUpperCase()}
           </Text>
           <Text
-            style={{ color: "#1F2937", fontWeight: "700", fontSize: 14, marginBottom: 8 }}
+            className="text-gray-800 font-bold text-sm mb-2"
             numberOfLines={1}
           >
             {product.name}
           </Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+          <View className="flex-row items-center mb-2">
             <Ionicons name="star" size={12} color="#FFC107" />
             <Ionicons name="star" size={12} color="#FFC107" />
             <Ionicons name="star" size={12} color="#FFC107" />
             <Ionicons name="star" size={12} color="#FFC107" />
             <Ionicons name="star-half" size={12} color="#FFC107" />
-            <Text style={{ color: "#6B7280", fontSize: 11, marginLeft: 4 }}>
+            <Text className="text-gray-500 text-[11px] ml-1">
               {product.totalReviews}
             </Text>
           </View>
 
-          <Text style={{ color: "#1F2937", fontWeight: "700", fontSize: 16 }}>
+          <Text className="text-gray-800 font-bold text-base">
             Rp {product.price.toLocaleString("id-ID")}
           </Text>
         </View>

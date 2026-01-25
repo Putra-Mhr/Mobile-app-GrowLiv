@@ -26,7 +26,7 @@ export const useProductReviews = (productId: string) => {
                 const { data } = await api.get<{ reviews: Review[] }>(`/reviews/product/${productId}`);
                 return data.reviews || [];
             } catch (error: any) {
-                console.log("Reviews fetch error:", error?.response?.status);
+
                 return [];
             }
         },

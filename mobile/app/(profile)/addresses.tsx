@@ -118,7 +118,7 @@ function AddressesScreen() {
       return;
     }
 
-    console.log('Saving address with data:', addressForm);
+
 
     if (editingAddressId) {
       updateAddress(

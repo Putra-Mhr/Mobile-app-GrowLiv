@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
+import { AxiosError } from "axios";
 import { Product } from "@/types";
 import { useAuth } from "@clerk/clerk-expo";
 
@@ -18,9 +19,10 @@ const useWishlist = () => {
       try {
         const { data } = await api.get<{ wishlist: Product[] }>("/users/wishlist");
         return data.wishlist;
-      } catch (error: any) {
+      } catch (err) {
+        const error = err as AxiosError;
         // Silently return empty array for auth/user errors
-        const status = error?.response?.status;
+        const status = error.response?.status;
         if (status === 401 || status === 403 || status === 404 || status === 500) {
           // New user or not synced yet - return empty wishlist
           return [] as Product[];
@@ -31,8 +33,9 @@ const useWishlist = () => {
     // Only fetch if user is fully signed in and auth is loaded
     enabled: isLoaded && !!isSignedIn,
     // Don't retry on common errors
-    retry: (failureCount, error: any) => {
-      const status = error?.response?.status;
+    retry: (failureCount, err) => {
+      const error = err as AxiosError;
+      const status = error.response?.status;
       if (status === 401 || status === 403 || status === 404 || status === 500) {
         return false;
       }
