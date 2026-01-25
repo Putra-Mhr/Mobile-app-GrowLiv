@@ -114,11 +114,8 @@ const CartScreen = () => {
       return;
     }
 
-    console.log("Checkout initiated", {
-      itemCount: cartItemCount,
-      total: total.toFixed(2),
-      city: selectedAddress.city,
-    });
+
+
 
     try {
       setPaymentLoading(true);
@@ -157,7 +154,7 @@ const CartScreen = () => {
 
   const handleMidtransSuccess = (orderId: string) => {
     setMidtransVisible(false);
-    console.log('✅ Payment success for order:', orderId);
+
     clearCart();
     refetch();
     showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
@@ -166,7 +163,7 @@ const CartScreen = () => {
 
   const handleMidtransPending = (orderId: string) => {
     setMidtransVisible(false);
-    console.log('⏳ Payment pending for order:', orderId);
+
     clearCart();
     refetch();
     showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');

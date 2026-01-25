@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "@/lib/api";
+import { AxiosError } from "axios";
 import { Cart } from "@/types";
 import { useAuth } from "@clerk/clerk-expo";
 import { useEffect } from "react";
@@ -15,7 +16,7 @@ const useCart = () => {
       // Clear ALL cart queries when user logs out or userId changes
       queryClient.removeQueries({ queryKey: ["cart"] });
       queryClient.clear(); // Clear entire cache to prevent stale data
-      console.log("useCart: Cleared all cart cache due to user change");
+
     }
   }, [isSignedIn, userId, queryClient]);
 
@@ -29,20 +30,21 @@ const useCart = () => {
     // CRITICAL: Include userId in query key to isolate cart data per user
     queryKey: ["cart", userId],
     queryFn: async () => {
-      console.log("useCart: Fetching cart for user:", userId);
+
       try {
         const { data } = await api.get<{ cart: Cart }>("/cart");
-        console.log("useCart: API response:", data);
+
         return data.cart;
-      } catch (error: any) {
+      } catch (err) {
+        const error = err as AxiosError<any>;
         // If user doesn't exist yet (new account), return empty cart
         // The backend will auto-create the user on next request via auth middleware
-        if (error?.response?.status === 401 || error?.response?.status === 404) {
-          console.log("useCart: User not found or unauthorized, returning empty cart");
+        if (error.response?.status === 401 || error.response?.status === 404) {
+
           return { items: [] } as Cart;
         }
         // For network errors or other issues, throw to trigger error state
-        console.error("useCart: API error:", error?.response?.data || error.message);
+        console.error("useCart: API error:", error.response?.data || error.message);
         throw error;
       }
     },
