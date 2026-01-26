@@ -62,3 +62,16 @@ export const customerApi = {
     return data;
   },
 };
+
+export const storeApi = {
+  getAll: async () => {
+    const { data } = await axiosInstance.get("/admin/stores");
+    return data;
+  },
+
+  verify: async ({ storeId, isVerified }) => {
+    const { data } = await axiosInstance.patch(`/admin/stores/${storeId}/verify`, { isVerified });
+    return data;
+  },
+};
+

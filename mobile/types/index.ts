@@ -11,6 +11,11 @@ export interface Product {
     longitude: number;
     address: string;
   };
+  store?: {
+    _id: string;
+    name: string;
+    imageUrl?: string;
+  };
   averageRating: number;
   totalReviews: number;
   createdAt: string;
@@ -115,3 +120,14 @@ export interface Cart {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  distribution: {
+    star: number;
+    count: number;
+    percentage: number;
+  }[];
+}
+

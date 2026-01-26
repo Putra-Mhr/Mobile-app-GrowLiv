@@ -83,8 +83,8 @@ const ShopScreen = () => {
 
     const headerInfo = getHeaderTitle();
 
-    return (
-        <View className="flex-1">
+    const renderHeader = () => (
+        <View>
             <PageBackground />
             {/* Teal Header */}
             <LinearGradient
@@ -132,133 +132,129 @@ const ShopScreen = () => {
                 </View>
             </LinearGradient>
 
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={{ paddingBottom: 100 }}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* Filter Toggle */}
-                <View className="px-5 py-4 flex-row gap-2">
-                    <TouchableOpacity
-                        className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "all" ? "bg-teal-500" : "bg-gray-200"
-                            }`}
-                        onPress={() => setActiveFilter("all")}
-                    >
-                        <Ionicons
-                            name="grid-outline"
-                            size={16}
-                            color={activeFilter === "all" ? "#FFFFFF" : "#6B7280"}
-                        />
-                        <Text className={`ml-2 font-medium ${activeFilter === "all" ? "text-white" : "text-gray-600"}`}>
-                            Semua Produk
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "popular" ? "bg-amber-500" : "bg-gray-200"
-                            }`}
-                        onPress={() => setActiveFilter("popular")}
-                    >
-                        <Ionicons
-                            name="star"
-                            size={16}
-                            color={activeFilter === "popular" ? "#FFFFFF" : "#6B7280"}
-                        />
-                        <Text className={`ml-2 font-medium ${activeFilter === "popular" ? "text-white" : "text-gray-600"}`}>
-                            Minggu Ini
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Category Filter - Same style as Home Page */}
-                <View className="bg-white pt-4 pb-4 shadow-sm">
-                    <View className="px-5 flex-row items-center justify-between mb-4">
-                        <View className="flex-row items-center">
-                            <Ionicons name="pricetags" size={20} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
-                            <Text className="text-gray-800 text-lg font-bold ml-2">Kategori</Text>
-                        </View>
-                    </View>
-
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
-                    >
-                        {CATEGORIES.map((category) => {
-                            const isSelected = selectedCategory === category.name;
-                            return (
-                                <TouchableOpacity
-                                    key={category.name}
-                                    className="items-center"
-                                    style={{ width: 70 }}
-                                    onPress={() => setSelectedCategory(category.name)}
-                                >
-                                    <View
-                                        style={{
-                                            width: 56,
-                                            height: 56,
-                                            borderRadius: 28,
-                                            backgroundColor: isSelected ? category.color : category.bgColor,
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                            marginBottom: 8,
-                                            borderWidth: isSelected ? 3 : 0,
-                                            borderColor: "#ffffff",
-                                            shadowColor: isSelected ? category.color : "transparent",
-                                            shadowOffset: { width: 0, height: 4 },
-                                            shadowOpacity: isSelected ? 0.3 : 0,
-                                            shadowRadius: 4,
-                                            elevation: isSelected ? 4 : 0,
-                                        }}
-                                    >
-                                        <Ionicons
-                                            name={category.icon as any}
-                                            size={24}
-                                            color={isSelected ? "#FFF" : category.color}
-                                        />
-                                    </View>
-                                    <Text
-                                        className={`text-xs text-center ${isSelected ? "font-bold text-teal-600" : "text-gray-600"}`}
-                                        numberOfLines={1}
-                                    >
-                                        {category.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
-
-                {/* Results Count */}
-                <View className="px-5 py-4">
-                    <View className="flex-row items-center">
-                        <View className={`p-2 rounded-lg mr-2 ${activeFilter === "popular" ? "bg-amber-100" : "bg-teal-100"}`}>
-                            <Ionicons name="grid" size={16} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
-                        </View>
-                        <Text className="text-gray-800 font-bold text-lg">
-                            {filteredProducts.length} Produk
-                        </Text>
-                        {selectedCategory !== "All" && (
-                            <View className="bg-teal-100 px-2 py-1 rounded-full ml-2">
-                                <Text className="text-teal-700 text-xs font-medium">{selectedCategory}</Text>
-                            </View>
-                        )}
-                        {activeFilter === "popular" && (
-                            <View className="bg-amber-100 px-2 py-1 rounded-full ml-2">
-                                <Text className="text-amber-700 text-xs font-medium">7 Hari Terakhir</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-
-                {/* Products Grid */}
-                <View className="px-5">
-                    <ProductsGrid
-                        products={filteredProducts}
-                        isLoading={isLoading}
-                        isError={isError}
+            {/* Filter Toggle */}
+            <View className="px-5 py-4 flex-row gap-2">
+                <TouchableOpacity
+                    className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "all" ? "bg-teal-500" : "bg-gray-200"
+                        }`}
+                    onPress={() => setActiveFilter("all")}
+                >
+                    <Ionicons
+                        name="grid-outline"
+                        size={16}
+                        color={activeFilter === "all" ? "#FFFFFF" : "#6B7280"}
                     />
+                    <Text className={`ml-2 font-medium ${activeFilter === "all" ? "text-white" : "text-gray-600"}`}>
+                        Semua Produk
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === "popular" ? "bg-amber-500" : "bg-gray-200"
+                        }`}
+                    onPress={() => setActiveFilter("popular")}
+                >
+                    <Ionicons
+                        name="star"
+                        size={16}
+                        color={activeFilter === "popular" ? "#FFFFFF" : "#6B7280"}
+                    />
+                    <Text className={`ml-2 font-medium ${activeFilter === "popular" ? "text-white" : "text-gray-600"}`}>
+                        Minggu Ini
+                    </Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Category Filter - Same style as Home Page */}
+            <View className="bg-white pt-4 pb-4 shadow-sm">
+                <View className="px-5 flex-row items-center justify-between mb-4">
+                    <View className="flex-row items-center">
+                        <Ionicons name="pricetags" size={20} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
+                        <Text className="text-gray-800 text-lg font-bold ml-2">Kategori</Text>
+                    </View>
                 </View>
-            </ScrollView>
+
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+                >
+                    {CATEGORIES.map((category) => {
+                        const isSelected = selectedCategory === category.name;
+                        return (
+                            <TouchableOpacity
+                                key={category.name}
+                                className="items-center"
+                                style={{ width: 70 }}
+                                onPress={() => setSelectedCategory(category.name)}
+                            >
+                                <View
+                                    style={{
+                                        width: 56,
+                                        height: 56,
+                                        borderRadius: 28,
+                                        backgroundColor: isSelected ? category.color : category.bgColor,
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        marginBottom: 8,
+                                        borderWidth: isSelected ? 3 : 0,
+                                        borderColor: "#ffffff",
+                                        shadowColor: isSelected ? category.color : "transparent",
+                                        shadowOffset: { width: 0, height: 4 },
+                                        shadowOpacity: isSelected ? 0.3 : 0,
+                                        shadowRadius: 4,
+                                        elevation: isSelected ? 4 : 0,
+                                    }}
+                                >
+                                    <Ionicons
+                                        name={category.icon as any}
+                                        size={24}
+                                        color={isSelected ? "#FFF" : category.color}
+                                    />
+                                </View>
+                                <Text
+                                    className={`text-xs text-center ${isSelected ? "font-bold text-teal-600" : "text-gray-600"}`}
+                                    numberOfLines={1}
+                                >
+                                    {category.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+
+            {/* Results Count */}
+            <View className="px-5 py-4">
+                <View className="flex-row items-center">
+                    <View className={`p-2 rounded-lg mr-2 ${activeFilter === "popular" ? "bg-amber-100" : "bg-teal-100"}`}>
+                        <Ionicons name="grid" size={16} color={activeFilter === "popular" ? "#F59E0B" : "#0D9488"} />
+                    </View>
+                    <Text className="text-gray-800 font-bold text-lg">
+                        {filteredProducts.length} Produk
+                    </Text>
+                    {selectedCategory !== "All" && (
+                        <View className="bg-teal-100 px-2 py-1 rounded-full ml-2">
+                            <Text className="text-teal-700 text-xs font-medium">{selectedCategory}</Text>
+                        </View>
+                    )}
+                    {activeFilter === "popular" && (
+                        <View className="bg-amber-100 px-2 py-1 rounded-full ml-2">
+                            <Text className="text-amber-700 text-xs font-medium">7 Hari Terakhir</Text>
+                        </View>
+                    )}
+                </View>
+            </View>
+        </View>
+    );
+
+    return (
+        <View className="flex-1 bg-gray-50">
+            <ProductsGrid
+                products={filteredProducts}
+                isLoading={isLoading}
+                isError={isError}
+                ListHeaderComponent={renderHeader()}
+            />
         </View>
     );
 };

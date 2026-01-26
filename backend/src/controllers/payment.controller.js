@@ -1,7 +1,9 @@
 import { snap } from "../config/midtrans.js";
 import { Order } from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
+import { Store } from "../models/store.model.js";
 import { calculateCartShipping } from "../services/shipping.service.js";
+import { v4 as uuidv4 } from "uuid";
 
 export async function createSnapTransaction(req, res) {
   try {
@@ -20,12 +22,13 @@ export async function createSnapTransaction(req, res) {
       });
     }
 
-    // Calculate total from server-side
+    // Calculate total from server-side and group items by store
     let subtotal = 0;
     const validatedItems = [];
+    const itemsByStore = new Map(); // storeId -> items[]
 
     for (const item of cartItems) {
-      const product = await Product.findById(item.product._id);
+      const product = await Product.findById(item.product._id).populate("store");
       if (!product) {
         return res.status(404).json({ error: `Product ${item.product.name} not found` });
       }
@@ -35,13 +38,25 @@ export async function createSnapTransaction(req, res) {
       }
 
       subtotal += product.price * item.quantity;
-      validatedItems.push({
+
+      const validatedItem = {
         id: product._id.toString(),
         price: product.price,
         quantity: item.quantity,
         name: product.name.substring(0, 50), // Midtrans name limit
         product: product, // Include full product for shipping calculation
-      });
+        storeId: product.store?._id?.toString() || null, // null = admin product
+        image: product.images?.[0] || "",
+      };
+
+      validatedItems.push(validatedItem);
+
+      // Group by store
+      const storeKey = validatedItem.storeId || "admin";
+      if (!itemsByStore.has(storeKey)) {
+        itemsByStore.set(storeKey, []);
+      }
+      itemsByStore.get(storeKey).push(validatedItem);
     }
 
     // Calculate dynamic shipping based on distance
@@ -63,6 +78,7 @@ export async function createSnapTransaction(req, res) {
       return res.status(400).json({ error: "Invalid order total" });
     }
 
+    const checkoutId = uuidv4(); // Unique ID to group split orders
     const orderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     // Prepare transaction details for Midtrans
@@ -75,7 +91,12 @@ export async function createSnapTransaction(req, res) {
         secure: true,
       },
       item_details: [
-        ...validatedItems,
+        ...validatedItems.map(item => ({
+          id: item.id,
+          price: item.price,
+          quantity: item.quantity,
+          name: item.name,
+        })),
         {
           id: "SHIPPING",
           price: shipping,
@@ -103,51 +124,74 @@ export async function createSnapTransaction(req, res) {
           country_code: "IDN",
         },
       },
-      enabled_payments: ["credit_card", "gopay", "shopeepay", "permata_va", "bca_va", "bni_va", "bri_va", "echannel", "other_va", "qris"], // Enable specific methods
+      enabled_payments: ["credit_card", "gopay", "shopeepay", "permata_va", "bca_va", "bni_va", "bri_va", "echannel", "other_va", "qris"],
     };
 
     // Create Snap transaction
     const transaction = await snap.createTransaction(transactionDetails);
 
-    // Create PENDING order (no stock reduction yet - only after payment verified)
-    // Stock will be reduced by webhook handler when payment is successful
-    console.log("Creating pending order (no stock reduction)...");
+    // Create SPLIT ORDERS - one per store
+    console.log(`Creating ${itemsByStore.size} split order(s) for checkout ${checkoutId}...`);
 
-    const order = await Order.create({
-      user: user._id,
-      clerkId: user.clerkId,
-      orderItems: cartItems.map((item, index) => ({
-        product: item.product._id,
-        name: validatedItems[index].name,
-        price: validatedItems[index].price,
-        quantity: item.quantity,
-        image: item.product.images ? item.product.images[0] : "",
-      })),
-      shippingAddress,
-      paymentResult: {
-        id: orderId, // Use our generated Order ID initially
-        status: "pending",
-      },
-      totalPrice: total,
-      status: "awaiting_payment", // Changed from "pending" to hide from user history
-      isPaid: false, // Explicitly set to false
-      trackingHistory: [
-        {
-          status: "awaiting_payment",
-          title: "Menunggu Pembayaran",
-          description: "Pesanan dibuat, menunggu pembayaran",
+    const createdOrders = [];
+    let orderIndex = 0;
+
+    for (const [storeKey, storeItems] of itemsByStore) {
+      const storeSubtotal = storeItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      // Proportional shipping per store (based on item value)
+      const storeShippingRatio = storeSubtotal / subtotal;
+      const storeShipping = Math.round(shipping * storeShippingRatio);
+
+      // Only first order gets admin fee
+      const storeAdminFee = orderIndex === 0 ? admin : 0;
+      const storeTotalPrice = storeSubtotal + storeShipping + storeAdminFee;
+
+      const orderData = {
+        user: user._id,
+        clerkId: user.clerkId,
+        checkoutId: checkoutId,
+        store: storeKey === "admin" ? null : storeKey,
+        orderItems: storeItems.map(item => ({
+          product: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image,
+        })),
+        shippingAddress,
+        paymentResult: {
+          id: orderId, // All split orders share the same Midtrans order ID
+          status: "pending",
         },
-      ],
-    });
+        totalPrice: storeTotalPrice,
+        status: "awaiting_payment",
+        isPaid: false,
+        trackingHistory: [
+          {
+            status: "awaiting_payment",
+            title: "Menunggu Pembayaran",
+            description: "Pesanan dibuat, menunggu pembayaran",
+          },
+        ],
+      };
 
-    console.log("✅ Pending order created:", order._id);
-    console.log("⚠️  Stock NOT reduced yet - waiting for payment verification");
+      const order = await Order.create(orderData);
+      createdOrders.push(order);
+
+      console.log(`✅ Split order created for store ${storeKey}:`, order._id);
+      orderIndex++;
+    }
+
+    console.log(`⚠️  Stock NOT reduced yet - waiting for payment verification`);
 
     res.status(200).json({
       token: transaction.token,
       redirect_url: transaction.redirect_url,
-      orderId: order._id,
-      shippingBreakdown: shippingCalculation.breakdown, // For display in UI
+      orderId: createdOrders[0]._id, // Return first order ID for backward compatibility
+      orderIds: createdOrders.map(o => o._id), // All order IDs
+      checkoutId: checkoutId, // For tracking the entire checkout
+      shippingBreakdown: shippingCalculation.breakdown,
     });
   } catch (error) {
     console.error("Error creating Midtrans transaction:", error);
@@ -160,3 +204,4 @@ export async function createSnapTransaction(req, res) {
     });
   }
 }
+

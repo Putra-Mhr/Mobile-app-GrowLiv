@@ -17,6 +17,9 @@ import productRoutes from "./routes/product.route.js";
 import cartRoutes from "./routes/cart.route.js";
 import paymentRoutes from "./routes/payment.route.js";
 import notificationRoutes from "./routes/notification.route.js";
+import storeRoutes from "./routes/store.route.js";
+import sellerRoutes from "./routes/seller.route.js";
+import { errorHandler } from "./middleware/error.middleware.js";
 
 const app = express();
 
@@ -36,6 +39,10 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/stores", storeRoutes);
+app.use("/api/seller", sellerRoutes);
+
+app.use(errorHandler);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ message: "Success" });
