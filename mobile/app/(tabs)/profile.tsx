@@ -35,6 +35,8 @@ const ProfileScreen = () => {
 
   // Profile state from backend
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [hasStore, setHasStore] = useState<boolean>(false);
+  const [storeName, setStoreName] = useState<string | null>(null);
 
   // Fetch profile data from backend
   const loadProfile = useCallback(async () => {
@@ -42,6 +44,23 @@ const ProfileScreen = () => {
       const response = await api.get("/users/profile");
       if (response.data?.profile?.name) {
         setProfileName(response.data.profile.name);
+      }
+      // Check user role
+      if (response.data?.profile?.role === "seller") {
+        setHasStore(true);
+        // Fetch store name
+        try {
+          const storeResponse = await api.get("/stores/my-store");
+          if (storeResponse.data?.name) {
+            setStoreName(storeResponse.data.name);
+          }
+        } catch {
+          // Store not found, user might need to re-register
+          setHasStore(false);
+        }
+      } else {
+        setHasStore(false);
+        setStoreName(null);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -205,6 +224,37 @@ const ProfileScreen = () => {
               )}
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* SELLER SECTION - Conditional based on store status */}
+        <View className="mb-3 mx-5 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <TouchableOpacity
+            className="flex-row items-center justify-between"
+            activeOpacity={0.7}
+            onPress={() => router.push(hasStore ? "/(seller)/dashboard" : "/seller/register")}
+          >
+            <View className="flex-row items-center">
+              <LinearGradient
+                colors={hasStore ? ["#DCFCE7", "#BBF7D0"] : ["#FEF3C7", "#FDE68A"]}
+                className="w-11 h-11 rounded-xl items-center justify-center mr-3"
+              >
+                <Ionicons
+                  name={hasStore ? "storefront" : "storefront-outline"}
+                  size={22}
+                  color={hasStore ? "#16A34A" : "#D97706"}
+                />
+              </LinearGradient>
+              <View>
+                <Text className="text-gray-800 font-semibold text-base">
+                  {hasStore ? "Toko Saya" : "Mulai Berjualan"}
+                </Text>
+                <Text className="text-gray-500 text-xs">
+                  {hasStore ? (storeName || "Kelola toko Anda") : "Buka toko online Anda"}
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
 

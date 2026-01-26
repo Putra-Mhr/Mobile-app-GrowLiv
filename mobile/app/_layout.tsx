@@ -7,28 +7,7 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { useApi } from "@/lib/api";
 
-const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: (error: any, query) => {
-      // Log errors to console instead of Sentry
-      console.error("React Query Error:", {
-        queryKey: query.queryKey[0]?.toString() || "unknown",
-        errorMessage: error.message,
-        statusCode: error.response?.status,
-        fullQueryKey: query.queryKey,
-      });
-    },
-  }),
-  mutationCache: new MutationCache({
-    onError: (error: any) => {
-      // Log mutation errors to console instead of Sentry
-      console.error("React Query Mutation Error:", {
-        errorMessage: error.message,
-        statusCode: error.response?.status,
-      });
-    },
-  }),
-});
+const queryClient = new QueryClient(); // Remove default onError logging as it is now handled by GlobalQueryErrorHandler
 
 // Component to handle navigation based on auth and onboarding status
 function NavigationHandler() {
@@ -83,11 +62,14 @@ function NavigationHandler() {
   return null;
 }
 
+import { GlobalQueryErrorHandler } from "@/components/GlobalQueryErrorHandler";
+
 export default function RootLayout() {
   return (
     <ClerkProvider tokenCache={tokenCache}>
       <QueryClientProvider client={queryClient}>
         <NotificationProvider>
+          <GlobalQueryErrorHandler />
           <NavigationHandler />
           <Stack screenOptions={{ headerShown: false }} />
         </NotificationProvider>

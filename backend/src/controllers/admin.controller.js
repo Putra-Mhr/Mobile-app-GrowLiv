@@ -2,6 +2,7 @@ import cloudinary from "../config/cloudinary.js";
 import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { User } from "../models/user.model.js";
+import { Store } from "../models/store.model.js";
 
 export async function createProduct(req, res) {
   try {
@@ -305,5 +306,160 @@ export const deleteOrder = async (req, res) => {
   } catch (error) {
     console.error("Error deleting order:", error);
     res.status(500).json({ message: "Failed to delete order" });
+  }
+};
+
+// ==================== STORE MANAGEMENT ====================
+
+/**
+ * Get all stores for admin management
+ * GET /api/admin/stores
+ */
+export const getAllStores = async (req, res) => {
+  try {
+    const stores = await Store.find()
+      .populate('user', 'name email imageUrl')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ stores });
+  } catch (error) {
+    console.error("Error fetching stores:", error);
+    res.status(500).json({ message: "Failed to fetch stores" });
+  }
+};
+
+/**
+ * Verify or reject a store
+ * PATCH /api/admin/stores/:storeId/verify
+ */
+export const verifyStore = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { isVerified, rejectionReason } = req.body;
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
+
+    store.isVerified = isVerified;
+
+    // Optionally store rejection reason (would need to add field to schema)
+    if (!isVerified && rejectionReason) {
+      console.log(`Store ${store.name} rejected: ${rejectionReason}`);
+    }
+
+    await store.save();
+
+    res.status(200).json({
+      message: isVerified ? "Toko berhasil diverifikasi" : "Toko ditolak",
+      store,
+    });
+  } catch (error) {
+    console.error("Error verifying store:", error);
+    res.status(500).json({ message: "Failed to verify store" });
+  }
+};
+
+/**
+ * Get all pending payouts (stores with balance > 0)
+ * GET /api/admin/payouts
+ */
+export const getPendingPayouts = async (req, res) => {
+  try {
+    const stores = await Store.find({ balance: { $gt: 0 } })
+      .populate('user', 'name email')
+      .sort({ balance: -1 });
+
+    const totalPending = stores.reduce((sum, store) => sum + store.balance, 0);
+
+    res.status(200).json({
+      stores,
+      totalPending,
+    });
+  } catch (error) {
+    console.error("Error fetching pending payouts:", error);
+    res.status(500).json({ message: "Failed to fetch pending payouts" });
+  }
+};
+
+/**
+ * Process payout to a store
+ * POST /api/admin/payouts/:storeId
+ */
+export const processPayout = async (req, res) => {
+  try {
+    const { storeId } = req.params;
+    const { amount, notes } = req.body;
+
+    const store = await Store.findById(storeId);
+    if (!store) {
+      return res.status(404).json({ message: "Store not found" });
+    }
+
+    const payoutAmount = amount || store.balance;
+
+    if (payoutAmount > store.balance) {
+      return res.status(400).json({ message: "Payout amount exceeds available balance" });
+    }
+
+    // Deduct from balance
+    store.balance -= payoutAmount;
+    await store.save();
+
+    // In production, you would:
+    // 1. Create a Payout record for audit trail
+    // 2. Integrate with payment provider (bank transfer, etc.)
+
+    console.log(`Payout processed: Rp ${payoutAmount} to ${store.name}. Notes: ${notes || 'N/A'}`);
+
+    res.status(200).json({
+      message: `Berhasil mengirim Rp ${payoutAmount.toLocaleString('id-ID')} ke ${store.name}`,
+      store,
+      payoutAmount,
+    });
+  } catch (error) {
+    console.error("Error processing payout:", error);
+    res.status(500).json({ message: "Failed to process payout" });
+  }
+};
+
+/**
+ * Get admin dashboard stats including store stats
+ * Enhanced version with store information
+ */
+export const getAdminDashboardExtended = async (req, res) => {
+  try {
+    const totalOrders = await Order.countDocuments();
+    const totalCustomers = await User.countDocuments({ role: 'user' });
+    const totalProducts = await Product.countDocuments();
+    const totalSellers = await User.countDocuments({ role: 'seller' });
+    const totalStores = await Store.countDocuments();
+    const pendingVerification = await Store.countDocuments({ isVerified: false });
+
+    const revenueResult = await Order.aggregate([
+      { $match: { status: { $in: ['delivered', 'shipped'] } } },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } },
+    ]);
+    const totalRevenue = revenueResult[0]?.total || 0;
+
+    const pendingPayoutsResult = await Store.aggregate([
+      { $group: { _id: null, total: { $sum: "$balance" } } },
+    ]);
+    const pendingPayouts = pendingPayoutsResult[0]?.total || 0;
+
+    res.status(200).json({
+      totalRevenue,
+      totalOrders,
+      totalCustomers,
+      totalProducts,
+      totalSellers,
+      totalStores,
+      pendingVerification,
+      pendingPayouts,
+    });
+  } catch (error) {
+    console.error("Error fetching extended dashboard stats:", error);
+    res.status(500).json({ message: "Failed to fetch dashboard stats" });
   }
 };

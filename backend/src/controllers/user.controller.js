@@ -170,6 +170,7 @@ export async function getProfile(req, res) {
         birthDate: user.birthDate || null,
         gender: user.gender || "",
         bio: user.bio || "",
+        role: user.role || "user", // Add role for seller detection
       },
     });
   } catch (error) {

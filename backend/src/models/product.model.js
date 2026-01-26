@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
+    store: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: false, // Optional for backward compatibility with admin-created products
+    },
     name: {
       type: String,
       required: true,

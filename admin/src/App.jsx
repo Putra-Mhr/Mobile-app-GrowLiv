@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ProductsPage from "./pages/ProductsPage";
 import OrdersPage from "./pages/OrdersPage";
 import CustomersPage from "./pages/CustomersPage";
+import StoresPage from "./pages/StoresPage";
 import DashboardLayout from "./layouts/DashboardLayout";
 
 import PageLoader from "./components/PageLoader";
@@ -23,6 +24,7 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
+        <Route path="stores" element={<StoresPage />} />
         <Route path="customers" element={<CustomersPage />} />
       </Route>
     </Routes>
@@ -30,3 +32,4 @@ function App() {
 }
 
 export default App;
+

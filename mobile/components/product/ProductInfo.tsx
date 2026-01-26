@@ -1,6 +1,8 @@
 import { View, Text, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Product, ReviewStats } from "@/types";
+import { router } from "expo-router";
 
 interface ProductInfoProps {
     product: Product;
@@ -48,6 +50,31 @@ const ProductInfo = ({
 
             {/* Product Name */}
             <Text className="text-gray-800 text-2xl font-bold mb-3">{product.name}</Text>
+
+            {/* Store/Seller Info */}
+            {product.store && (
+                <TouchableOpacity
+                    className="flex-row items-center bg-amber-50 p-3 rounded-xl mb-4"
+                    onPress={() => router.push(`/store/${product.store?._id}` as any)}
+                    activeOpacity={0.7}
+                >
+                    {product.store.imageUrl ? (
+                        <Image
+                            source={product.store.imageUrl}
+                            style={{ width: 32, height: 32, borderRadius: 16 }}
+                        />
+                    ) : (
+                        <View className="w-8 h-8 bg-amber-200 rounded-full items-center justify-center">
+                            <Ionicons name="storefront" size={16} color="#D97706" />
+                        </View>
+                    )}
+                    <View className="ml-3 flex-1">
+                        <Text className="text-gray-500 text-xs">Dijual oleh</Text>
+                        <Text className="text-amber-800 font-semibold">{product.store.name}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+            )}
 
             {/* Rating & Reviews Summary */}
             <View className="flex-row items-center mb-4">
@@ -129,7 +156,7 @@ const ProductInfo = ({
 
                     {/* Right - Distribution Bars */}
                     <View className="flex-1">
-                        {reviewStats.ratingDistribution.map(({ star, count, percentage }) => (
+                        {reviewStats.distribution.map(({ star, count, percentage }) => (
                             <View key={star} className="flex-row items-center mb-1">
                                 <Text className="text-gray-600 text-xs w-4">{star}</Text>
                                 <Ionicons name="star" size={10} color="#F59E0B" />

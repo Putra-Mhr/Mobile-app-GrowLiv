@@ -57,7 +57,7 @@ export const useProductReviews = (productId: string) => {
             ? safeReviews.reduce((sum, r) => sum + r.rating, 0) / safeReviews.length
             : 0,
         totalReviews: safeReviews.length,
-        ratingDistribution: [5, 4, 3, 2, 1].map(star => ({
+        distribution: [5, 4, 3, 2, 1].map(star => ({
             star,
             count: safeReviews.filter(r => r.rating === star).length,
             percentage: safeReviews.length > 0

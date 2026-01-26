@@ -17,9 +17,10 @@ interface ProductsGridProps {
   isLoading: boolean;
   isError: boolean;
   products: Product[];
+  ListHeaderComponent?: React.ReactElement | null;
 }
 
-const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
+const ProductsGrid = ({ products, isLoading, isError, ListHeaderComponent }: ProductsGridProps) => {
   const { isInWishlist, toggleWishlist, isAddingToWishlist, isRemovingFromWishlist } =
     useWishlist();
 
@@ -128,27 +129,41 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <View style={{ paddingVertical: 80, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#22C55E" />
-        <Text style={{ color: "#6B7280", marginTop: 16 }}>Loading products...</Text>
-      </View>
-    );
-  }
+  const renderEmpty = () => {
+    if (isLoading) {
+      return (
+        <View style={{ paddingVertical: 80, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator size="large" color="#22C55E" />
+          <Text style={{ color: "#6B7280", marginTop: 16 }}>Loading products...</Text>
+        </View>
+      );
+    }
 
-  if (isError) {
+    if (isError) {
+      return (
+        <View style={{ paddingVertical: 80, alignItems: "center", justifyContent: "center" }}>
+          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+          <Text style={{ color: "#1F2937", fontWeight: "600", marginTop: 16 }}>
+            Failed to load products
+          </Text>
+          <Text style={{ color: "#6B7280", fontSize: 14, marginTop: 8 }}>
+            Please try again later
+          </Text>
+        </View>
+      );
+    }
+
     return (
       <View style={{ paddingVertical: 80, alignItems: "center", justifyContent: "center" }}>
-        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+        <Ionicons name="search-outline" size={48} color="#9CA3AF" />
         <Text style={{ color: "#1F2937", fontWeight: "600", marginTop: 16 }}>
-          Failed to load products
+          No products found
         </Text>
         <Text style={{ color: "#6B7280", fontSize: 14, marginTop: 8 }}>
-          Please try again later
+          Try adjusting your filters
         </Text>
       </View>
-    );
+    )
   }
 
   return (
@@ -157,10 +172,11 @@ const ProductsGrid = ({ products, isLoading, isError }: ProductsGridProps) => {
       renderItem={renderProduct}
       keyExtractor={(item) => item._id}
       numColumns={2}
-      columnWrapperStyle={{ justifyContent: "space-between" }}
+      columnWrapperStyle={{ justifyContent: "space-between", paddingHorizontal: 20 }}
       showsVerticalScrollIndicator={false}
-      scrollEnabled={false}
-      ListEmptyComponent={NoProductsFound}
+      ListHeaderComponent={ListHeaderComponent}
+      ListEmptyComponent={renderEmpty}
+      contentContainerStyle={{ paddingBottom: 100 }}
     />
   );
 };

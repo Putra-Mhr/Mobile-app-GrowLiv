@@ -68,6 +68,15 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    store: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Store",
+      required: false, // Optional for backward compatibility
+    },
+    checkoutId: {
+      type: String,
+      required: false, // Groups split orders from same checkout
+    },
     orderItems: [orderItemSchema],
     shippingAddress: {
       type: shippingAddressSchema,
