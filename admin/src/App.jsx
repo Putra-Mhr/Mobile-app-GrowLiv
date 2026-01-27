@@ -6,6 +6,7 @@ import ProductsPage from "./pages/ProductsPage";
 import OrdersPage from "./pages/OrdersPage";
 import CustomersPage from "./pages/CustomersPage";
 import StoresPage from "./pages/StoresPage";
+import TreasuryPage from "./pages/TreasuryPage";
 import DashboardLayout from "./layouts/DashboardLayout";
 
 import PageLoader from "./components/PageLoader";
@@ -25,6 +26,7 @@ function App() {
         <Route path="products" element={<ProductsPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="stores" element={<StoresPage />} />
+        <Route path="treasury" element={<TreasuryPage />} />
         <Route path="customers" element={<CustomersPage />} />
       </Route>
     </Routes>
@@ -32,4 +34,3 @@ function App() {
 }
 
 export default App;
-

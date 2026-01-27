@@ -18,7 +18,6 @@ interface Coupon {
     isUsed?: boolean;
 }
 
-// Mock data - in real app this would come from API
 const MOCK_COUPONS: { available: Coupon[]; myCoupons: Coupon[]; expired: Coupon[] } = {
     available: [
         // {

@@ -91,6 +91,19 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    // Price breakdown for accurate payout
+    sellerEarnings: {
+      type: Number,
+      default: 0, // Product price only (what seller receives)
+    },
+    shippingCost: {
+      type: Number,
+      default: 0,
+    },
+    adminFee: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["awaiting_payment", "payment_failed", "pending", "shipped", "delivered", "canceled"],

@@ -2,6 +2,7 @@ import cloudinary from "../config/cloudinary.js";
 import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { Store } from "../models/store.model.js";
+import { Payout } from "../models/payout.model.js";
 
 /**
  * Get seller dashboard stats
@@ -11,13 +12,19 @@ export const getSellerDashboard = async (req, res) => {
     try {
         const storeId = req.store._id;
 
-        const [totalProducts, pendingOrders, completedOrders, revenue] = await Promise.all([
+        const [totalProducts, pendingOrders, completedOrders, completedPayouts, pendingPayouts] = await Promise.all([
             Product.countDocuments({ store: storeId }),
             Order.countDocuments({ store: storeId, status: "pending" }),
             Order.countDocuments({ store: storeId, status: "delivered" }),
-            Order.aggregate([
-                { $match: { store: storeId, isPaid: true } },
-                { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+            // Revenue = only completed (caired) payouts
+            Payout.aggregate([
+                { $match: { store: storeId, status: "completed" } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]),
+            // Pending = waiting to be caired by admin
+            Payout.aggregate([
+                { $match: { store: storeId, status: "pending" } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
             ])
         ]);
 
@@ -25,7 +32,8 @@ export const getSellerDashboard = async (req, res) => {
             totalProducts,
             pendingOrders,
             completedOrders,
-            totalRevenue: revenue[0]?.total || 0,
+            totalRevenue: completedPayouts[0]?.total || 0, // Only caired amount
+            pendingRevenue: pendingPayouts[0]?.total || 0, // Waiting to be caired
             store: req.store,
         });
     } catch (error) {

@@ -14,6 +14,9 @@ import {
   getPendingPayouts,
   processPayout,
   getAdminDashboardExtended,
+  getTreasury,
+  getPendingPayoutRecords,
+  getPayoutHistory,
 } from "../controllers/admin.controller.js";
 import { adminOnly, protectRoute } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
@@ -41,12 +44,16 @@ router.get("/stats/extended", getAdminDashboardExtended);
 router.get("/stores", getAllStores);
 router.patch("/stores/:storeId/verify", verifyStore);
 
+// Treasury management
+router.get("/treasury", getTreasury);
+
 // Payout management
 router.get("/payouts", getPendingPayouts);
+router.get("/payouts/pending", getPendingPayoutRecords);
+router.get("/payouts/history", getPayoutHistory);
 router.post("/payouts/:storeId", processPayout);
 
 // PUT: Used for full resource replacement, updating the entire resource
 // PATCH: Used for partial resource updates, updating a specific part of the resource
 
 export default router;
-
