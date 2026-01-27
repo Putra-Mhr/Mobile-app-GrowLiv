@@ -34,11 +34,6 @@ export const orderApi = {
   },
 
   manualVerify: async (orderId) => {
-    // Note: This endpoint is in payment route, not admin route
-    // But axiosInstance base URL handles /api context?
-    // axios default baseURL is usually VITE_API_URL/api
-    // So if route is /api/payment/manual-verify/:orderId
-    // We should call /payment/manual-verify/:orderId
     const { data } = await axiosInstance.post(`/payment/manual-verify/${orderId}`);
     return data;
   },
@@ -73,5 +68,41 @@ export const storeApi = {
     const { data } = await axiosInstance.patch(`/admin/stores/${storeId}/verify`, { isVerified });
     return data;
   },
+
+  processPayout: async ({ storeId, amount, notes }) => {
+    const { data } = await axiosInstance.post(`/admin/payouts/${storeId}`, { amount, notes });
+    return data;
+  },
 };
 
+export const treasuryApi = {
+  // Get treasury status
+  get: async () => {
+    const { data } = await axiosInstance.get("/admin/treasury");
+    return data;
+  },
+
+  // Get extended dashboard with treasury info
+  getDashboardExtended: async () => {
+    const { data } = await axiosInstance.get("/admin/stats/extended");
+    return data;
+  },
+
+  // Get pending payouts (grouped by store)
+  getPendingPayouts: async () => {
+    const { data } = await axiosInstance.get("/admin/payouts/pending");
+    return data;
+  },
+
+  // Get payout history
+  getPayoutHistory: async (params = {}) => {
+    const { data } = await axiosInstance.get("/admin/payouts/history", { params });
+    return data;
+  },
+
+  // Process payout to store
+  processPayout: async ({ storeId, amount, notes }) => {
+    const { data } = await axiosInstance.post(`/admin/payouts/${storeId}`, { amount, notes });
+    return data;
+  },
+};

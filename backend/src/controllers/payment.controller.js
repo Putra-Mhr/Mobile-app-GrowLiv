@@ -165,6 +165,10 @@ export async function createSnapTransaction(req, res) {
           status: "pending",
         },
         totalPrice: storeTotalPrice,
+        // Price breakdown for accurate payout
+        sellerEarnings: storeSubtotal, // Product price only - what seller will receive
+        shippingCost: storeShipping,
+        adminFee: storeAdminFee,
         status: "awaiting_payment",
         isPaid: false,
         trackingHistory: [
@@ -188,11 +192,13 @@ export async function createSnapTransaction(req, res) {
     res.status(200).json({
       token: transaction.token,
       redirect_url: transaction.redirect_url,
+      midtransOrderId: orderId, // Midtrans payment ID for check-status
       orderId: createdOrders[0]._id, // Return first order ID for backward compatibility
       orderIds: createdOrders.map(o => o._id), // All order IDs
       checkoutId: checkoutId, // For tracking the entire checkout
       shippingBreakdown: shippingCalculation.breakdown,
     });
+
   } catch (error) {
     console.error("Error creating Midtrans transaction:", error);
     if (error.name === 'ValidationError') {

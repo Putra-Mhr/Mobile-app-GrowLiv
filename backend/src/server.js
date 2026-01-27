@@ -8,6 +8,7 @@ import { functions, inngest } from "./config/inngest.js";
 
 import { ENV } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import { Treasury } from "./models/treasury.model.js";
 
 import adminRoutes from "./routes/admin.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -59,9 +60,19 @@ if (ENV.NODE_ENV === "production") {
 
 const startServer = async () => {
   await connectDB();
+
+  // Initialize Treasury singleton at startup
+  try {
+    await Treasury.getInstance();
+    console.log("🏦 Treasury initialized");
+  } catch (error) {
+    console.error("⚠️ Failed to initialize Treasury:", error.message);
+  }
+
   app.listen(ENV.PORT, () => {
     console.log("Server is up and running");
   });
 };
 
 startServer();
+

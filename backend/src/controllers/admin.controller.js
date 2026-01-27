@@ -3,6 +3,8 @@ import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { User } from "../models/user.model.js";
 import { Store } from "../models/store.model.js";
+import { Treasury } from "../models/treasury.model.js";
+import { Payout } from "../models/payout.model.js";
 
 export async function createProduct(req, res) {
   try {
@@ -384,7 +386,75 @@ export const getPendingPayouts = async (req, res) => {
 };
 
 /**
- * Process payout to a store
+ * Get Platform Treasury status
+ * GET /api/admin/treasury
+ */
+export const getTreasury = async (req, res) => {
+  try {
+    const treasury = await Treasury.getInstance();
+
+    res.status(200).json({
+      treasury: {
+        adminFeeBalance: treasury.adminFeeBalance,
+        shippingBalance: treasury.shippingBalance,
+        sellerPendingBalance: treasury.sellerPendingBalance,
+        totalAdminFeeEarned: treasury.totalAdminFeeEarned,
+        totalShippingCollected: treasury.totalShippingCollected,
+        totalSellerPayouts: treasury.totalSellerPayouts,
+        totalOrdersProcessed: treasury.totalOrdersProcessed,
+        updatedAt: treasury.updatedAt,
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching treasury:", error);
+    res.status(500).json({ message: "Failed to fetch treasury" });
+  }
+};
+
+/**
+ * Get all pending payouts from Payout records
+ * GET /api/admin/payouts/pending
+ */
+export const getPendingPayoutRecords = async (req, res) => {
+  try {
+    const payouts = await Payout.find({ status: "pending" })
+      .populate('store', 'name imageUrl user')
+      .populate('order', 'totalPrice createdAt')
+      .sort({ createdAt: -1 });
+
+    // Group by store for summary
+    const storePayouts = {};
+    for (const payout of payouts) {
+      const storeId = payout.store?._id?.toString();
+      if (!storeId) continue;
+
+      if (!storePayouts[storeId]) {
+        storePayouts[storeId] = {
+          store: payout.store,
+          totalPending: 0,
+          payouts: [],
+        };
+      }
+      storePayouts[storeId].totalPending += payout.amount;
+      storePayouts[storeId].payouts.push(payout);
+    }
+
+    const totalPending = payouts.reduce((sum, p) => sum + p.amount, 0);
+
+    res.status(200).json({
+      payouts,
+      groupedByStore: Object.values(storePayouts),
+      totalPending,
+    });
+  } catch (error) {
+    console.error("Error fetching pending payout records:", error);
+    res.status(500).json({ message: "Failed to fetch pending payouts" });
+  }
+};
+
+/**
+ * Process payout to a store - NEW FLOW
+ * Transfers from Platform Treasury to Store Balance
  * POST /api/admin/payouts/:storeId
  */
 export const processPayout = async (req, res) => {
@@ -392,41 +462,123 @@ export const processPayout = async (req, res) => {
     const { storeId } = req.params;
     const { amount, notes } = req.body;
 
-    const store = await Store.findById(storeId);
+    const store = await Store.findById(storeId).populate('user', 'name email');
     if (!store) {
       return res.status(404).json({ message: "Store not found" });
     }
 
-    const payoutAmount = amount || store.balance;
+    // Get treasury
+    const treasury = await Treasury.getInstance();
 
-    if (payoutAmount > store.balance) {
-      return res.status(400).json({ message: "Payout amount exceeds available balance" });
+    // Calculate how much is available for this store from pending payouts
+    const pendingPayoutsForStore = await Payout.find({
+      store: storeId,
+      status: "pending"
+    });
+    const availableForStore = pendingPayoutsForStore.reduce((sum, p) => sum + p.amount, 0);
+
+    const payoutAmount = amount || availableForStore;
+
+    if (payoutAmount <= 0) {
+      return res.status(400).json({ message: "No pending payout available for this store" });
     }
 
-    // Deduct from balance
-    store.balance -= payoutAmount;
+    if (payoutAmount > availableForStore) {
+      return res.status(400).json({ message: `Payout amount exceeds available balance (Rp ${availableForStore.toLocaleString('id-ID')})` });
+    }
+
+    if (payoutAmount > treasury.sellerPendingBalance) {
+      return res.status(400).json({ message: "Insufficient treasury balance" });
+    }
+
+    // Process payout: Deduct from treasury
+    await treasury.processPayout(payoutAmount);
+
+    // Credit to store balance
+    store.balance = (store.balance || 0) + payoutAmount;
+    store.totalRevenue = (store.totalRevenue || 0) + payoutAmount;
     await store.save();
 
-    // In production, you would:
-    // 1. Create a Payout record for audit trail
-    // 2. Integrate with payment provider (bank transfer, etc.)
+    // Mark pending payouts as completed (up to the payout amount)
+    let remainingAmount = payoutAmount;
+    for (const payout of pendingPayoutsForStore) {
+      if (remainingAmount <= 0) break;
 
-    console.log(`Payout processed: Rp ${payoutAmount} to ${store.name}. Notes: ${notes || 'N/A'}`);
+      if (payout.amount <= remainingAmount) {
+        payout.status = "completed";
+        payout.processedBy = req.user?._id;
+        payout.notes = notes || payout.notes;
+        await payout.save();
+        remainingAmount -= payout.amount;
+      } else {
+        // Partial payout - split the record
+        payout.amount -= remainingAmount;
+        await payout.save();
+
+        // Create completed record for the paid portion
+        await Payout.create({
+          store: storeId,
+          order: payout.order,
+          amount: remainingAmount,
+          type: "manual_payout",
+          status: "completed",
+          processedBy: req.user?._id,
+          notes: notes || `Partial payout from ${payout._id}`,
+        });
+        remainingAmount = 0;
+      }
+    }
+
+    console.log(`✅ Payout processed: Rp ${payoutAmount.toLocaleString('id-ID')} to ${store.name}`);
 
     res.status(200).json({
-      message: `Berhasil mengirim Rp ${payoutAmount.toLocaleString('id-ID')} ke ${store.name}`,
-      store,
+      message: `Berhasil mencairkan Rp ${payoutAmount.toLocaleString('id-ID')} ke ${store.name}`,
+      store: {
+        _id: store._id,
+        name: store.name,
+        balance: store.balance,
+        user: store.user,
+      },
       payoutAmount,
+      treasury: {
+        sellerPendingBalance: treasury.sellerPendingBalance,
+      },
     });
   } catch (error) {
     console.error("Error processing payout:", error);
-    res.status(500).json({ message: "Failed to process payout" });
+    res.status(500).json({ message: error.message || "Failed to process payout" });
+  }
+};
+
+/**
+ * Get payout history
+ * GET /api/admin/payouts/history
+ */
+export const getPayoutHistory = async (req, res) => {
+  try {
+    const { storeId, status, limit = 50 } = req.query;
+
+    const query = {};
+    if (storeId) query.store = storeId;
+    if (status) query.status = status;
+
+    const payouts = await Payout.find(query)
+      .populate('store', 'name imageUrl')
+      .populate('order', 'totalPrice')
+      .populate('processedBy', 'name')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.status(200).json({ payouts });
+  } catch (error) {
+    console.error("Error fetching payout history:", error);
+    res.status(500).json({ message: "Failed to fetch payout history" });
   }
 };
 
 /**
  * Get admin dashboard stats including store stats
- * Enhanced version with store information
+ * Enhanced version with store and treasury information
  */
 export const getAdminDashboardExtended = async (req, res) => {
   try {
@@ -437,16 +589,22 @@ export const getAdminDashboardExtended = async (req, res) => {
     const totalStores = await Store.countDocuments();
     const pendingVerification = await Store.countDocuments({ isVerified: false });
 
+    // Get treasury data
+    const treasury = await Treasury.getInstance();
+
     const revenueResult = await Order.aggregate([
       { $match: { status: { $in: ['delivered', 'shipped'] } } },
       { $group: { _id: null, total: { $sum: "$totalPrice" } } },
     ]);
     const totalRevenue = revenueResult[0]?.total || 0;
 
-    const pendingPayoutsResult = await Store.aggregate([
-      { $group: { _id: null, total: { $sum: "$balance" } } },
+    // Count pending payouts from Payout model
+    const pendingPayoutsCount = await Payout.countDocuments({ status: "pending" });
+    const pendingPayoutsResult = await Payout.aggregate([
+      { $match: { status: "pending" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
-    const pendingPayouts = pendingPayoutsResult[0]?.total || 0;
+    const pendingPayoutsAmount = pendingPayoutsResult[0]?.total || 0;
 
     res.status(200).json({
       totalRevenue,
@@ -456,7 +614,14 @@ export const getAdminDashboardExtended = async (req, res) => {
       totalSellers,
       totalStores,
       pendingVerification,
-      pendingPayouts,
+      pendingPayoutsCount,
+      pendingPayoutsAmount,
+      treasury: {
+        adminFeeBalance: treasury.adminFeeBalance,
+        shippingBalance: treasury.shippingBalance,
+        sellerPendingBalance: treasury.sellerPendingBalance,
+        totalOrdersProcessed: treasury.totalOrdersProcessed,
+      },
     });
   } catch (error) {
     console.error("Error fetching extended dashboard stats:", error);

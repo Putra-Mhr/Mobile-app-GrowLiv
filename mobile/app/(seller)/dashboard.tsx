@@ -12,6 +12,7 @@ interface DashboardStats {
     pendingOrders: number;
     completedOrders: number;
     totalRevenue: number;
+    pendingRevenue: number;
     store: {
         name: string;
         imageUrl?: string;
@@ -93,20 +94,39 @@ export default function SellerDashboard() {
                     </View>
                 </LinearGradient>
 
-                {/* Revenue Card */}
-                <View className="mx-5 -mt-4">
-                    <LinearGradient
-                        colors={['#FFFFFF', '#F9FAFB']}
-                        className="rounded-2xl p-5 shadow-sm border border-gray-100"
-                    >
-                        <View className="flex-row items-center mb-2">
-                            <Ionicons name="wallet" size={20} color="#22C55E" />
-                            <Text className="text-gray-600 ml-2 font-medium">Total Pendapatan</Text>
-                        </View>
-                        <Text className="text-3xl font-bold text-gray-800">
-                            {formatCurrency(data?.totalRevenue || 0)}
-                        </Text>
-                    </LinearGradient>
+                {/* Revenue Cards */}
+                <View className="mx-5 -mt-4 flex-row gap-3">
+                    {/* Completed Revenue */}
+                    <View className="flex-1">
+                        <LinearGradient
+                            colors={['#FFFFFF', '#F9FAFB']}
+                            className="rounded-2xl p-4 shadow-sm border border-gray-100"
+                        >
+                            <View className="flex-row items-center mb-1">
+                                <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                                <Text className="text-gray-500 ml-1 text-xs">Sudah Dicairkan</Text>
+                            </View>
+                            <Text className="text-xl font-bold text-green-600">
+                                {formatCurrency(data?.totalRevenue || 0)}
+                            </Text>
+                        </LinearGradient>
+                    </View>
+
+                    {/* Pending Revenue */}
+                    <View className="flex-1">
+                        <LinearGradient
+                            colors={['#FFF7ED', '#FFEDD5']}
+                            className="rounded-2xl p-4 shadow-sm border border-orange-100"
+                        >
+                            <View className="flex-row items-center mb-1">
+                                <Ionicons name="time" size={16} color="#F59E0B" />
+                                <Text className="text-gray-500 ml-1 text-xs">Menunggu Cair</Text>
+                            </View>
+                            <Text className="text-xl font-bold text-orange-600">
+                                {formatCurrency(data?.pendingRevenue || 0)}
+                            </Text>
+                        </LinearGradient>
+                    </View>
                 </View>
 
                 {/* Stats Grid */}

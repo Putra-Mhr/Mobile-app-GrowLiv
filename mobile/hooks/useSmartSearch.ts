@@ -18,7 +18,7 @@ export const useSmartSearch = <T>(
         return new Fuse(data, {
             keys,
             threshold,
-            ignoreLocation: true, // Find matches anywhere in the string
+            ignoreLocation: true,
             minMatchCharLength: 2,
         });
     }, [data, keys.join(","), threshold]);

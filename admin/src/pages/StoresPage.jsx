@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CheckCircleIcon, XCircleIcon, StoreIcon, SearchIcon, RefreshCwIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { storeApi } from "../lib/api";
+import { Link } from "react-router";
 
 function StoresPage() {
     const queryClient = useQueryClient();
@@ -44,9 +45,17 @@ function StoresPage() {
         verifyMutation.mutate({ storeId, isVerified });
     };
 
+    const formatRupiah = (value) => {
+        return new Intl.NumberFormat("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            minimumFractionDigits: 0,
+        }).format(value || 0);
+    };
+
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex justify-center items-center h-64">
                 <span className="loading loading-spinner loading-lg"></span>
             </div>
         );
@@ -55,35 +64,63 @@ function StoresPage() {
     if (error) {
         return (
             <div className="alert alert-error">
-                <span>Error loading stores: {error.message}</span>
-                <button className="btn btn-sm" onClick={() => refetch()}>
-                    Retry
-                </button>
+                <span>Error: {error.message}</span>
             </div>
         );
     }
 
     return (
         <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Manajemen Toko</h1>
+                    <p className="text-sm text-gray-500">Verifikasi dan kelola toko seller</p>
+                </div>
+                <button className="btn btn-ghost btn-sm gap-2" onClick={() => refetch()}>
+                    <RefreshCwIcon className="size-4" />
+                    Refresh
+                </button>
+            </div>
+
+            {/* Treasury Link Banner */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="text-3xl">💰</span>
+                        <div>
+                            <h3 className="font-semibold text-green-800">Pencairan Dana Seller</h3>
+                            <p className="text-sm text-green-600">Kelola payout ke seller melalui halaman Treasury</p>
+                        </div>
+                    </div>
+                    <Link
+                        to="/treasury"
+                        className="btn btn-success btn-sm gap-2"
+                    >
+                        Buka Treasury →
+                    </Link>
+                </div>
+            </div>
+
             {/* Stats Cards */}
-            <div className="stats shadow w-full">
-                <div className="stat">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="stat bg-base-100 rounded-xl shadow">
                     <div className="stat-figure text-primary">
-                        <StoreIcon className="w-8 h-8" />
+                        <StoreIcon className="size-8" />
                     </div>
                     <div className="stat-title">Total Toko</div>
                     <div className="stat-value text-primary">{stores.length}</div>
                 </div>
-                <div className="stat">
+                <div className="stat bg-base-100 rounded-xl shadow">
                     <div className="stat-figure text-warning">
-                        <XCircleIcon className="w-8 h-8" />
+                        <XCircleIcon className="size-8" />
                     </div>
                     <div className="stat-title">Menunggu Verifikasi</div>
                     <div className="stat-value text-warning">{pendingCount}</div>
                 </div>
-                <div className="stat">
+                <div className="stat bg-base-100 rounded-xl shadow">
                     <div className="stat-figure text-success">
-                        <CheckCircleIcon className="w-8 h-8" />
+                        <CheckCircleIcon className="size-8" />
                     </div>
                     <div className="stat-title">Terverifikasi</div>
                     <div className="stat-value text-success">{verifiedCount}</div>
@@ -91,116 +128,124 @@ function StoresPage() {
             </div>
 
             {/* Filters and Search */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-col md:flex-row gap-4">
                 <div className="join">
                     <button
-                        className={`join-item btn ${filter === "all" ? "btn-active" : ""}`}
+                        className={`btn join-item ${filter === "all" ? "btn-primary" : "btn-ghost"}`}
                         onClick={() => setFilter("all")}
                     >
                         Semua ({stores.length})
                     </button>
                     <button
-                        className={`join-item btn ${filter === "pending" ? "btn-active btn-warning" : ""}`}
+                        className={`btn join-item ${filter === "pending" ? "btn-warning" : "btn-ghost"}`}
                         onClick={() => setFilter("pending")}
                     >
                         Pending ({pendingCount})
                     </button>
                     <button
-                        className={`join-item btn ${filter === "verified" ? "btn-active btn-success" : ""}`}
+                        className={`btn join-item ${filter === "verified" ? "btn-success" : "btn-ghost"}`}
                         onClick={() => setFilter("verified")}
                     >
                         Verified ({verifiedCount})
                     </button>
                 </div>
-
-                <div className="flex gap-2">
-                    <div className="form-control">
-                        <div className="input-group">
-                            <input
-                                type="text"
-                                placeholder="Cari toko..."
-                                className="input input-bordered"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                <div className="flex-1">
+                    <div className="relative">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Cari nama toko atau email..."
+                            className="input input-bordered w-full pl-10"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
-                    <button className="btn btn-ghost" onClick={() => refetch()}>
-                        <RefreshCwIcon className="w-5 h-5" />
-                    </button>
                 </div>
             </div>
 
             {/* Stores Table */}
-            <div className="overflow-x-auto bg-base-100 rounded-lg shadow">
-                <table className="table table-zebra">
+            <div className="overflow-x-auto bg-base-100 rounded-xl shadow">
+                <table className="table">
                     <thead>
                         <tr>
                             <th>Toko</th>
                             <th>Pemilik</th>
-                            <th>Lokasi</th>
-                            <th>Produk</th>
-                            <th>Saldo</th>
                             <th>Status</th>
+                            <th>Saldo Dicairkan</th>
+                            <th>Total Penjualan</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {filteredStores.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="text-center py-8 text-gray-500">
-                                    Tidak ada toko ditemukan
+                                <td colSpan={6} className="text-center py-8 text-gray-500">
+                                    Tidak ada toko yang ditemukan
                                 </td>
                             </tr>
                         ) : (
                             filteredStores.map((store) => (
-                                <tr key={store._id}>
+                                <tr key={store._id} className="hover">
                                     <td>
                                         <div className="flex items-center gap-3">
-                                            <div className="avatar">
-                                                <div className="mask mask-squircle w-12 h-12 bg-gray-200 flex items-center justify-center">
-                                                    {store.imageUrl ? (
-                                                        <img src={store.imageUrl} alt={store.name} />
-                                                    ) : (
-                                                        <StoreIcon className="w-6 h-6 text-gray-400" />
-                                                    )}
+                                            {store.imageUrl ? (
+                                                <img
+                                                    src={store.imageUrl}
+                                                    alt={store.name}
+                                                    className="size-12 rounded-lg object-cover"
+                                                />
+                                            ) : (
+                                                <div className="size-12 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                                                    {store.name[0]?.toUpperCase()}
                                                 </div>
-                                            </div>
+                                            )}
                                             <div>
                                                 <div className="font-bold">{store.name}</div>
-                                                <div className="text-sm opacity-50">
-                                                    {new Date(store.createdAt).toLocaleDateString("id-ID")}
+                                                <div className="text-xs text-gray-500">
+                                                    {store.address || "Alamat belum diisi"}
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <div className="text-sm font-medium">{store.user?.name || "-"}</div>
-                                        <div className="text-xs opacity-50">{store.user?.email || "-"}</div>
-                                    </td>
-                                    <td>{store.pickupAddress?.city || "-"}</td>
-                                    <td>{store.totalProducts || 0}</td>
-                                    <td>
-                                        <span className="font-mono">
-                                            Rp {(store.balance || 0).toLocaleString("id-ID")}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {store.user?.imageUrl && (
+                                                <img
+                                                    src={store.user.imageUrl}
+                                                    alt={store.user.name}
+                                                    className="size-6 rounded-full"
+                                                />
+                                            )}
+                                            <div>
+                                                <div className="text-sm">{store.user?.name || "Unknown"}</div>
+                                                <div className="text-xs text-gray-500">{store.user?.email}</div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
                                         {store.isVerified ? (
-                                            <div className="badge badge-success gap-1">
-                                                <CheckCircleIcon className="w-3 h-3" />
-                                                Verified
-                                            </div>
+                                            <span className="badge badge-success gap-1">
+                                                <CheckCircleIcon className="size-3" /> Verified
+                                            </span>
                                         ) : (
-                                            <div className="badge badge-warning gap-1">
-                                                <XCircleIcon className="w-3 h-3" />
-                                                Pending
-                                            </div>
+                                            <span className="badge badge-warning gap-1">
+                                                <XCircleIcon className="size-3" /> Pending
+                                            </span>
                                         )}
                                     </td>
                                     <td>
+                                        <span className="font-mono text-sm text-green-600">
+                                            {formatRupiah(store.balance || 0)}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span className="font-mono text-sm">
+                                            {store.totalSales || 0} items
+                                        </span>
+                                    </td>
+                                    <td>
                                         <button
-                                            className="btn btn-sm btn-ghost"
+                                            className="btn btn-ghost btn-xs"
                                             onClick={() => setSelectedStore(store)}
                                         >
                                             Detail
@@ -215,121 +260,117 @@ function StoresPage() {
 
             {/* Store Detail Modal */}
             {selectedStore && (
-                <dialog className="modal modal-open">
+                <div className="modal modal-open">
                     <div className="modal-box max-w-2xl">
-                        <h3 className="font-bold text-lg mb-4">Detail Toko</h3>
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            <StoreIcon className="size-5" />
+                            Detail Toko
+                        </h3>
 
-                        <div className="space-y-4">
+                        <div className="mt-4 space-y-4">
                             {/* Store Info */}
-                            <div className="flex items-center gap-4 p-4 bg-base-200 rounded-lg">
-                                <div className="avatar">
-                                    <div className="w-20 rounded-full bg-gray-300 flex items-center justify-center">
-                                        {selectedStore.imageUrl ? (
-                                            <img src={selectedStore.imageUrl} alt={selectedStore.name} />
-                                        ) : (
-                                            <StoreIcon className="w-10 h-10 text-gray-500" />
-                                        )}
+                            <div className="flex items-center gap-4">
+                                {selectedStore.imageUrl ? (
+                                    <img
+                                        src={selectedStore.imageUrl}
+                                        alt={selectedStore.name}
+                                        className="size-20 rounded-xl object-cover"
+                                    />
+                                ) : (
+                                    <div className="size-20 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-3xl">
+                                        {selectedStore.name[0]?.toUpperCase()}
                                     </div>
-                                </div>
-                                <div className="flex-1">
+                                )}
+                                <div>
                                     <h4 className="text-xl font-bold">{selectedStore.name}</h4>
-                                    <p className="text-sm opacity-70">{selectedStore.pickupAddress?.city}</p>
-                                    <div className="mt-2">
-                                        {selectedStore.isVerified ? (
-                                            <div className="badge badge-success">Terverifikasi</div>
-                                        ) : (
-                                            <div className="badge badge-warning">Menunggu Verifikasi</div>
-                                        )}
-                                    </div>
+                                    <p className="text-sm text-gray-500">{selectedStore.description || "Tidak ada deskripsi"}</p>
                                 </div>
                             </div>
+
+                            <div className="divider"></div>
 
                             {/* Owner Info */}
-                            <div className="p-4 bg-base-200 rounded-lg">
-                                <h5 className="font-semibold mb-2">Pemilik Toko</h5>
-                                <div className="flex items-center gap-3">
-                                    {selectedStore.user?.imageUrl && (
-                                        <div className="avatar">
-                                            <div className="w-10 rounded-full">
-                                                <img src={selectedStore.user.imageUrl} alt={selectedStore.user.name} />
-                                            </div>
-                                        </div>
-                                    )}
+                            <div className="bg-base-200 p-4 rounded-lg">
+                                <h5 className="font-semibold mb-2">Informasi Pemilik</h5>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>Nama:</div>
+                                    <div className="font-medium">{selectedStore.user?.name}</div>
+                                    <div>Email:</div>
+                                    <div className="font-medium">{selectedStore.user?.email}</div>
+                                </div>
+                            </div>
+
+                            {/* Store Stats */}
+                            <div className="bg-base-200 p-4 rounded-lg">
+                                <h5 className="font-semibold mb-2">Statistik Toko</h5>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>Total Penjualan:</div>
+                                    <div className="font-medium">{selectedStore.totalSales || 0} items</div>
+                                    <div>Saldo Dicairkan:</div>
+                                    <div className="font-medium text-green-600">{formatRupiah(selectedStore.balance || 0)}</div>
+                                    <div>Total Revenue:</div>
+                                    <div className="font-medium">{formatRupiah(selectedStore.totalRevenue || 0)}</div>
+                                </div>
+                            </div>
+
+                            {/* Payout Info */}
+                            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <span className="text-2xl">💡</span>
                                     <div>
-                                        <p className="font-medium">{selectedStore.user?.name || "-"}</p>
-                                        <p className="text-sm opacity-70">{selectedStore.user?.email || "-"}</p>
+                                        <h5 className="font-semibold text-green-800">Pencairan Dana</h5>
+                                        <p className="text-sm text-green-700 mt-1">
+                                            Untuk mencairkan dana ke seller, gunakan halaman <strong>Treasury</strong>.
+                                            Di sana Anda bisa melihat pending payout dari order yang sudah dibayar.
+                                        </p>
+                                        <Link
+                                            to="/treasury"
+                                            className="btn btn-success btn-sm mt-2"
+                                        >
+                                            Buka Treasury
+                                        </Link>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Stats */}
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="stat bg-base-200 rounded-lg p-4">
-                                    <div className="stat-title">Produk</div>
-                                    <div className="stat-value text-lg">{selectedStore.totalProducts || 0}</div>
-                                </div>
-                                <div className="stat bg-base-200 rounded-lg p-4">
-                                    <div className="stat-title">Terjual</div>
-                                    <div className="stat-value text-lg">{selectedStore.totalSales || 0}</div>
-                                </div>
-                                <div className="stat bg-base-200 rounded-lg p-4">
-                                    <div className="stat-title">Saldo</div>
-                                    <div className="stat-value text-lg text-success">
-                                        Rp {((selectedStore.balance || 0) / 1000).toFixed(0)}K
+                            {/* Verification Status */}
+                            <div className="bg-base-200 p-4 rounded-lg">
+                                <h5 className="font-semibold mb-2">Status Verifikasi</h5>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        {selectedStore.isVerified ? (
+                                            <span className="badge badge-success badge-lg gap-2">
+                                                <CheckCircleIcon className="size-4" /> Terverifikasi
+                                            </span>
+                                        ) : (
+                                            <span className="badge badge-warning badge-lg gap-2">
+                                                <XCircleIcon className="size-4" /> Menunggu Verifikasi
+                                            </span>
+                                        )}
                                     </div>
+                                    <button
+                                        className={`btn btn-sm ${selectedStore.isVerified ? "btn-error" : "btn-success"}`}
+                                        onClick={() => handleVerify(selectedStore._id, !selectedStore.isVerified)}
+                                        disabled={verifyMutation.isPending}
+                                    >
+                                        {verifyMutation.isPending
+                                            ? "Loading..."
+                                            : selectedStore.isVerified
+                                                ? "Cabut Verifikasi"
+                                                : "Verifikasi Toko"}
+                                    </button>
                                 </div>
                             </div>
-
-                            {/* Description */}
-                            {selectedStore.description && (
-                                <div className="p-4 bg-base-200 rounded-lg">
-                                    <h5 className="font-semibold mb-2">Deskripsi</h5>
-                                    <p className="text-sm">{selectedStore.description}</p>
-                                </div>
-                            )}
                         </div>
 
                         <div className="modal-action">
                             <button className="btn" onClick={() => setSelectedStore(null)}>
                                 Tutup
                             </button>
-                            {selectedStore.isVerified ? (
-                                <button
-                                    className="btn btn-error"
-                                    onClick={() => handleVerify(selectedStore._id, false)}
-                                    disabled={verifyMutation.isPending}
-                                >
-                                    {verifyMutation.isPending ? (
-                                        <span className="loading loading-spinner loading-sm"></span>
-                                    ) : (
-                                        <>
-                                            <XCircleIcon className="w-4 h-4" />
-                                            Cabut Verifikasi
-                                        </>
-                                    )}
-                                </button>
-                            ) : (
-                                <button
-                                    className="btn btn-success"
-                                    onClick={() => handleVerify(selectedStore._id, true)}
-                                    disabled={verifyMutation.isPending}
-                                >
-                                    {verifyMutation.isPending ? (
-                                        <span className="loading loading-spinner loading-sm"></span>
-                                    ) : (
-                                        <>
-                                            <CheckCircleIcon className="w-4 h-4" />
-                                            Verifikasi Toko
-                                        </>
-                                    )}
-                                </button>
-                            )}
                         </div>
                     </div>
-                    <form method="dialog" className="modal-backdrop">
-                        <button onClick={() => setSelectedStore(null)}>close</button>
-                    </form>
-                </dialog>
+                    <div className="modal-backdrop" onClick={() => setSelectedStore(null)}></div>
+                </div>
             )}
         </div>
     );

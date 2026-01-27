@@ -1,99 +1,111 @@
 import mongoose from "mongoose";
-import crypto from "crypto";
 import { Order } from "../models/order.model.js";
 import { Product } from "../models/product.model.js";
 import { Cart } from "../models/cart.model.js";
 import { Treasury } from "../models/treasury.model.js";
 import { Payout } from "../models/payout.model.js";
+import { coreApi } from "../config/midtrans.js";
 
 /**
- * Midtrans Notification/Webhook Handler
- * Called by Midtrans when payment status changes
+ * Check payment status from Midtrans
+ * Used when webhook doesn't work (local development)
+ * GET /api/payment/check-status/:orderId
  */
-export async function handleMidtransNotification(req, res) {
+export async function checkPaymentStatus(req, res) {
     try {
-        const notification = req.body;
+        const { orderId } = req.params;
 
-        console.log("📥 Midtrans Notification Received:", {
-            order_id: notification.order_id,
-            transaction_status: notification.transaction_status,
-            fraud_status: notification.fraud_status,
-        });
+        console.log("🔍 Checking payment status for:", orderId);
 
-        // Verify signature
-        const serverKey = process.env.MIDTRANS_SERVER_KEY;
-        const signatureKey = notification.signature_key;
-        const orderId = notification.order_id;
-        const statusCode = notification.status_code;
-        const grossAmount = notification.gross_amount;
-
-        const mySignature = crypto
-            .createHash("sha512")
-            .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
-            .digest("hex");
-
-        if (signatureKey !== mySignature) {
-            console.error("❌ Invalid signature");
-            return res.status(403).json({ error: "Invalid signature" });
-        }
-
-        // Find ALL orders with this payment ID (could be split orders)
-        const orders = await Order.find({ "paymentResult.id": orderId });
+        // Find order(s) by payment result ID or order ID
+        let orders = await Order.find({ "paymentResult.id": orderId });
 
         if (!orders || orders.length === 0) {
-            console.error("❌ Order(s) not found for:", orderId);
-            return res.status(404).json({ error: "Order not found" });
-        }
-
-        console.log(`✅ Found ${orders.length} order(s) for payment:`, orderId);
-
-        // Update orders based on transaction status
-        const transactionStatus = notification.transaction_status;
-        const fraudStatus = notification.fraud_status;
-
-        for (const order of orders) {
-            if (transactionStatus === "capture") {
-                if (fraudStatus === "accept") {
-                    await handleSuccessfulPayment(order, notification);
-                }
-            } else if (transactionStatus === "settlement") {
-                await handleSuccessfulPayment(order, notification);
-            } else if (
-                transactionStatus === "cancel" ||
-                transactionStatus === "deny" ||
-                transactionStatus === "expire"
-            ) {
-                if (order.status !== 'awaiting_payment') {
-                    order.status = "canceled";
-                }
-                order.paymentResult.status = transactionStatus;
-                await order.save();
-                console.log("❌ Payment failed/cancelled for order:", order._id);
-            } else if (transactionStatus === "pending") {
-                order.paymentResult.status = "pending";
-                await order.save();
-                console.log("⏳ Payment still pending for order:", order._id);
+            // Try finding by order _id
+            const order = await Order.findById(orderId);
+            if (order) {
+                orders = [order];
             }
         }
 
-        res.status(200).json({ message: "Notification processed" });
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({ error: "Order not found" });
+        }
+
+        const paymentId = orders[0].paymentResult?.id;
+        if (!paymentId) {
+            return res.status(400).json({ error: "Order has no payment ID" });
+        }
+
+        console.log("📋 Checking Midtrans status for payment:", paymentId);
+
+        // Query Midtrans for actual payment status
+        let midtransStatus;
+        try {
+            midtransStatus = await coreApi.transaction.status(paymentId);
+            console.log("📥 Midtrans status response:", midtransStatus);
+        } catch (midtransError) {
+            console.error("⚠️ Midtrans API error:", midtransError.message);
+            return res.status(200).json({
+                paymentId,
+                orders: orders.map(o => ({
+                    _id: o._id,
+                    isPaid: o.isPaid,
+                    status: o.status
+                })),
+                midtransError: midtransError.message,
+                message: "Could not verify with Midtrans - status from local database"
+            });
+        }
+
+        const transactionStatus = midtransStatus.transaction_status;
+        const fraudStatus = midtransStatus.fraud_status;
+
+        console.log("📊 Transaction status:", transactionStatus, "Fraud status:", fraudStatus);
+
+        // Check if payment is successful
+        const isSettled =
+            transactionStatus === "settlement" ||
+            (transactionStatus === "capture" && fraudStatus === "accept");
+
+        if (isSettled) {
+            // Process each order
+            for (const order of orders) {
+                if (!order.isPaid) {
+                    await processSuccessfulPayment(order);
+                } else {
+                    console.log("⏭️ Order already paid:", order._id);
+                }
+            }
+        }
+
+        res.status(200).json({
+            paymentId,
+            midtransStatus: {
+                transaction_status: transactionStatus,
+                fraud_status: fraudStatus,
+                gross_amount: midtransStatus.gross_amount,
+                payment_type: midtransStatus.payment_type,
+            },
+            isSettled,
+            orders: orders.map(o => ({
+                _id: o._id,
+                isPaid: o.isPaid,
+                status: o.status
+            })),
+            message: isSettled ? "Payment confirmed and processed!" : `Payment status: ${transactionStatus}`
+        });
     } catch (error) {
-        console.error("Error handling Midtrans notification:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error checking payment status:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
     }
 }
 
 /**
- * Handle successful payment
+ * Process successful payment
  * Tries to use MongoDB Transaction if available, otherwise runs without transaction
  */
-async function handleSuccessfulPayment(order, notification) {
-    // Skip if already paid (avoid duplicate processing)
-    if (order.isPaid) {
-        console.log("⏭️ Order already paid, skipping:", order._id);
-        return;
-    }
-
+async function processSuccessfulPayment(order) {
     let session = null;
     let useTransaction = true;
 
@@ -123,7 +135,7 @@ async function handleSuccessfulPayment(order, notification) {
         order.trackingHistory.push({
             status: "pending",
             title: "Pembayaran Berhasil",
-            description: "Pembayaran telah diverifikasi, pesanan akan segera diproses",
+            description: "Pembayaran telah dikonfirmasi, pesanan akan segera diproses",
             timestamp: new Date(),
         });
 
@@ -218,7 +230,7 @@ async function handleSuccessfulPayment(order, notification) {
                 console.log(`📝 Payout record created for store ${order.store}: Rp ${sellerAmount.toLocaleString('id-ID')}`);
             }
         } else {
-            console.log("ℹ️ No store for this order (admin product) - no payout record created");
+            console.log("ℹ️ No store for this order (admin product) - no payout record");
         }
 
         // ========== COMMIT TRANSACTION ==========

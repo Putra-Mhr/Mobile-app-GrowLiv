@@ -8,6 +8,7 @@ import {
   ShoppingBagIcon,
   UsersIcon,
   StoreIcon,
+  WalletIcon,
 } from "lucide-react";
 
 export const NAVIGATION = [
@@ -15,6 +16,7 @@ export const NAVIGATION = [
   { name: "Products", path: "/products", icon: <ShoppingBagIcon className="size-5" /> },
   { name: "Orders", path: "/orders", icon: <ClipboardListIcon className="size-5" /> },
   { name: "Stores", path: "/stores", icon: <StoreIcon className="size-5" /> },
+  { name: "Treasury", path: "/treasury", icon: <WalletIcon className="size-5" /> },
   { name: "Customers", path: "/customers", icon: <UsersIcon className="size-5" /> },
 ];
 

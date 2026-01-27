@@ -2,7 +2,7 @@ import { useAddresses } from "@/hooks/useAddresses";
 import useCart from "@/hooks/useCart";
 import { useApi } from "@/lib/api";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -36,8 +36,12 @@ const CartScreen = () => {
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [midtransVisible, setMidtransVisible] = useState(false);
   const [midtransUrl, setMidtransUrl] = useState<string | null>(null);
+  const [currentMidtransOrderId, setCurrentMidtransOrderId] = useState<string | null>(null);
   const [shippingCost, setShippingCost] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+
+  // Ref for synchronous check to prevent race condition
+  const isProcessingPaymentRef = useRef(false);
 
   // Set default address on load
   useEffect(() => {
@@ -135,6 +139,7 @@ const CartScreen = () => {
 
       if (data.redirect_url) {
         setMidtransUrl(data.redirect_url);
+        setCurrentMidtransOrderId(data.midtransOrderId); // Save for check-status
         setMidtransVisible(true);
       } else {
         showToast('error', 'Gagal Memproses', 'Gagal mendapatkan URL pembayaran');
@@ -152,25 +157,86 @@ const CartScreen = () => {
     }
   };
 
-  const handleMidtransSuccess = (orderId: string) => {
+  const handleMidtransSuccess = async (orderId: string) => {
     setMidtransVisible(false);
+
+    // Synchronous check using ref to prevent race condition
+    if (isProcessingPaymentRef.current || !currentMidtransOrderId) {
+      console.log('Payment already being processed or no order ID');
+      return;
+    }
+
+    // Set ref immediately (synchronous) to block concurrent calls
+    isProcessingPaymentRef.current = true;
+
+    const orderIdToCheck = currentMidtransOrderId;
+    setCurrentMidtransOrderId(null);
+
+    // Call check-status endpoint to verify payment with Midtrans and update Treasury
+    try {
+      showToast('info', 'Memverifikasi...', 'Mengkonfirmasi pembayaran Anda');
+
+      console.log('Checking payment status for:', orderIdToCheck);
+      const { data: statusData } = await api.get(`/payment/check-status/${orderIdToCheck}`);
+      console.log('Payment status check result:', statusData);
+
+      if (statusData.isSettled) {
+        showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
+      } else {
+        showToast('info', 'Status Pembayaran', statusData.message || 'Pembayaran sedang diproses');
+      }
+    } catch (error) {
+      console.error('Failed to check payment status:', error);
+      showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
+    } finally {
+      isProcessingPaymentRef.current = false;
+    }
 
     clearCart();
     refetch();
-    showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
     router.replace({ pathname: '/(profile)/orders', params: { orderId } });
   };
 
-  const handleMidtransPending = (orderId: string) => {
+  const handleMidtransPending = async (orderId: string) => {
     setMidtransVisible(false);
+
+    // Synchronous check using ref to prevent race condition
+    if (isProcessingPaymentRef.current || !currentMidtransOrderId) {
+      console.log('Payment already being processed or no order ID');
+      return;
+    }
+
+    // Set ref immediately (synchronous) to block concurrent calls
+    isProcessingPaymentRef.current = true;
+
+    const orderIdToCheck = currentMidtransOrderId;
+    setCurrentMidtransOrderId(null);
+
+    // Check status for pending - might have completed
+    try {
+      console.log('Checking payment status for:', orderIdToCheck);
+      const { data: statusData } = await api.get(`/payment/check-status/${orderIdToCheck}`);
+      console.log('Payment status check result:', statusData);
+
+      if (statusData.isSettled) {
+        showToast('success', 'Pembayaran Berhasil! 🎉', 'Pesanan Anda sedang diproses');
+      } else {
+        showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
+      }
+    } catch (error) {
+      console.error('Failed to check payment status:', error);
+      showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
+    } finally {
+      isProcessingPaymentRef.current = false;
+    }
 
     clearCart();
     refetch();
-    showToast('info', 'Menunggu Pembayaran', 'Silakan selesaikan pembayaran Anda.');
     router.replace('/(profile)/orders');
   };
 
   const handleMidtransError = () => {
+
     setMidtransVisible(false);
     showToast('error', 'Pembayaran Dibatalkan', 'Anda membatalkan pembayaran.');
   };
