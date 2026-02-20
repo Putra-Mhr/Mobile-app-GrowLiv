@@ -17,6 +17,7 @@ import {
   getTreasury,
   getPendingPayoutRecords,
   getPayoutHistory,
+  syncStoreCounters,
 } from "../controllers/admin.controller.js";
 import { adminOnly, protectRoute } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
@@ -43,6 +44,7 @@ router.get("/stats/extended", getAdminDashboardExtended);
 // Store management
 router.get("/stores", getAllStores);
 router.patch("/stores/:storeId/verify", verifyStore);
+router.post("/stores/sync-counters", syncStoreCounters);
 
 // Treasury management
 router.get("/treasury", getTreasury);

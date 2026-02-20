@@ -179,11 +179,22 @@ export const updateSellerProduct = async (req, res) => {
 export const deleteSellerProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const product = await Product.findOneAndDelete({ _id: id, store: req.store._id });
+        const product = await Product.findOne({ _id: id, store: req.store._id });
 
         if (!product) {
             return res.status(404).json({ message: "Produk tidak ditemukan" });
         }
+
+        // Cleanup Cloudinary images before deleting
+        if (product.images && product.images.length > 0) {
+            const deletePromises = product.images.map((imageUrl) => {
+                const publicId = "products/" + imageUrl.split("/products/")[1]?.split(".")[0];
+                if (publicId) return cloudinary.uploader.destroy(publicId);
+            });
+            await Promise.all(deletePromises.filter(Boolean));
+        }
+
+        await Product.findByIdAndDelete(id);
 
         // Update store product count
         await Store.findByIdAndUpdate(req.store._id, { $inc: { totalProducts: -1 } });

@@ -8,17 +8,17 @@ export async function createOrder(req, res) {
     const { orderItems, shippingAddress, paymentResult, totalPrice } = req.body;
 
     if (!orderItems || orderItems.length === 0) {
-      return res.status(400).json({ error: "No order items" });
+      return res.status(400).json({ message: "No order items" });
     }
 
     // validate products and stock
     for (const item of orderItems) {
       const product = await Product.findById(item.product._id);
       if (!product) {
-        return res.status(404).json({ error: `Product ${item.name} not found` });
+        return res.status(404).json({ message: `Product ${item.name} not found` });
       }
       if (product.stock < item.quantity) {
-        return res.status(400).json({ error: `Insufficient stock for ${product.name}` });
+        return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
       }
     }
 
@@ -31,17 +31,14 @@ export async function createOrder(req, res) {
       totalPrice,
     });
 
-    // update product stock
-    for (const item of orderItems) {
-      await Product.findByIdAndUpdate(item.product._id, {
-        $inc: { stock: -item.quantity },
-      });
-    }
+    // NOTE: Stock is NOT reduced here.
+    // Stock reduction happens in processSuccessfulPayment when payment is confirmed.
+    // This prevents double stock reduction.
 
     res.status(201).json({ message: "Order created successfully", order });
   } catch (error) {
     console.error("Error in createOrder controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 

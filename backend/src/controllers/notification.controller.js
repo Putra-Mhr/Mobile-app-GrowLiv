@@ -26,7 +26,7 @@ export async function getNotifications(req, res) {
         });
     } catch (error) {
         console.error("Error in getNotifications:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -39,7 +39,7 @@ export async function getUnreadCount(req, res) {
         res.status(200).json({ unreadCount });
     } catch (error) {
         console.error("Error in getUnreadCount:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -56,13 +56,13 @@ export async function markAsRead(req, res) {
         );
 
         if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
+            return res.status(404).json({ message: "Notification not found" });
         }
 
         res.status(200).json({ notification });
     } catch (error) {
         console.error("Error in markAsRead:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -79,7 +79,7 @@ export async function markAllAsRead(req, res) {
         res.status(200).json({ message: "All notifications marked as read" });
     } catch (error) {
         console.error("Error in markAllAsRead:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -92,13 +92,13 @@ export async function deleteNotification(req, res) {
         const notification = await Notification.findOneAndDelete({ _id: id, userId });
 
         if (!notification) {
-            return res.status(404).json({ error: "Notification not found" });
+            return res.status(404).json({ message: "Notification not found" });
         }
 
         res.status(200).json({ message: "Notification deleted" });
     } catch (error) {
         console.error("Error in deleteNotification:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -112,7 +112,7 @@ export async function deleteAllNotifications(req, res) {
         res.status(200).json({ message: "All notifications deleted" });
     } catch (error) {
         console.error("Error in deleteAllNotifications:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 
@@ -122,7 +122,7 @@ export async function createNotification(req, res) {
         const { userId, type, title, message, data } = req.body;
 
         if (!userId || !title || !message) {
-            return res.status(400).json({ error: "Missing required fields" });
+            return res.status(400).json({ message: "Missing required fields" });
         }
 
         const notification = await Notification.create({
@@ -136,7 +136,7 @@ export async function createNotification(req, res) {
         res.status(201).json({ notification });
     } catch (error) {
         console.error("Error in createNotification:", error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
 

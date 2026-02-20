@@ -8,7 +8,7 @@ import {
     deleteAllNotifications,
     createNotification,
 } from "../controllers/notification.controller.js";
-import { protectRoute } from "../middleware/auth.middleware.js";
+import { protectRoute, adminOnly } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -26,7 +26,7 @@ router.put("/read-all", markAllAsRead);
 router.delete("/:id", deleteNotification);
 router.delete("/", deleteAllNotifications);
 
-// Create (for testing/admin)
-router.post("/", createNotification);
+// Create (admin only)
+router.post("/", adminOnly, createNotification);
 
 export default router;

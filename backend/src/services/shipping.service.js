@@ -65,8 +65,8 @@ export function calculateCartShipping(cartItems, deliveryCoordinates) {
 
     for (const item of cartItems) {
         if (!item.product?.location?.latitude || !item.product?.location?.longitude) {
-            // Fallback to Jakarta coordinates if missing (Monas)
-            // throw new Error(`Product ${item.product?.name || "unknown"} is missing location data`);
+            // Fallback to Jakarta coordinates if product missing location
+            console.warn(`⚠️ Product "${item.product?.name || "unknown"}" missing location - using Jakarta default`);
             if (!item.product.location) item.product.location = {};
             item.product.location.latitude = -6.175392;
             item.product.location.longitude = 106.827153;

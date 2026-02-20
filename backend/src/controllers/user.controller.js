@@ -8,7 +8,7 @@ export async function addAddress(req, res) {
     const user = req.user;
 
     if (!fullName || !streetAddress || !city || !state || !zipCode) {
-      return res.status(400).json({ error: "Missing required address fields" });
+      return res.status(400).json({ message: "Missing required address fields" });
     }
 
     // if this is set as default, unset all other defaults
@@ -35,7 +35,7 @@ export async function addAddress(req, res) {
     res.status(201).json({ message: "Address added successfully", addresses: user.addresses });
   } catch (error) {
     console.error("Error in addAddress controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -46,7 +46,7 @@ export async function getAddresses(req, res) {
     res.status(200).json({ addresses: user.addresses });
   } catch (error) {
     console.error("Error in getAddresses controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -60,7 +60,7 @@ export async function updateAddress(req, res) {
     const user = req.user;
     const address = user.addresses.id(addressId);
     if (!address) {
-      return res.status(404).json({ error: "Address not found" });
+      return res.status(404).json({ message: "Address not found" });
     }
 
     // if this is set as default, unset all other defaults
@@ -85,7 +85,7 @@ export async function updateAddress(req, res) {
     res.status(200).json({ message: "Address updated successfully", addresses: user.addresses });
   } catch (error) {
     console.error("Error in updateAddress controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -100,7 +100,7 @@ export async function deleteAddress(req, res) {
     res.status(200).json({ message: "Address deleted successfully", addresses: user.addresses });
   } catch (error) {
     console.error("Error in deleteAddress controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -111,7 +111,7 @@ export async function addToWishlist(req, res) {
 
     // check if product is already in the wishlist
     if (user.wishlist.includes(productId)) {
-      return res.status(400).json({ error: "Product already in wishlist" });
+      return res.status(400).json({ message: "Product already in wishlist" });
     }
 
     user.wishlist.push(productId);
@@ -120,7 +120,7 @@ export async function addToWishlist(req, res) {
     res.status(200).json({ message: "Product added to wishlist", wishlist: user.wishlist });
   } catch (error) {
     console.error("Error in addToWishlist controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -131,7 +131,7 @@ export async function removeFromWishlist(req, res) {
 
     // check if product is already in the wishlist
     if (!user.wishlist.includes(productId)) {
-      return res.status(400).json({ error: "Product not found in wishlist" });
+      return res.status(400).json({ message: "Product not found in wishlist" });
     }
 
     user.wishlist.pull(productId);
@@ -140,7 +140,7 @@ export async function removeFromWishlist(req, res) {
     res.status(200).json({ message: "Product removed from wishlist", wishlist: user.wishlist });
   } catch (error) {
     console.error("Error in removeFromWishlist controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -152,7 +152,7 @@ export async function getWishlist(req, res) {
     res.status(200).json({ wishlist: user.wishlist });
   } catch (error) {
     console.error("Error in getWishlist controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -175,7 +175,7 @@ export async function getProfile(req, res) {
     });
   } catch (error) {
     console.error("Error in getProfile controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -221,7 +221,7 @@ export async function updateProfile(req, res) {
     });
   } catch (error) {
     console.error("Error in updateProfile controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -236,7 +236,7 @@ export async function getOnboardingStatus(req, res) {
     });
   } catch (error) {
     console.error("Error in getOnboardingStatus controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -254,7 +254,7 @@ export async function completeOnboarding(req, res) {
     });
   } catch (error) {
     console.error("Error in completeOnboarding controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -276,7 +276,7 @@ export async function getPrivacySettings(req, res) {
     res.status(200).json({ privacySettings: settings });
   } catch (error) {
     console.error("Error in getPrivacySettings controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -305,7 +305,7 @@ export async function updatePrivacySettings(req, res) {
     });
   } catch (error) {
     console.error("Error in updatePrivacySettings controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -351,7 +351,7 @@ export async function exportUserData(req, res) {
     });
   } catch (error) {
     console.error("Error in exportUserData controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -410,6 +410,6 @@ export async function deleteAccount(req, res) {
     });
   } catch (error) {
     console.error("Error in deleteAccount controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }

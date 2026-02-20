@@ -8,11 +8,11 @@ export async function createProductReview(req, res) {
     const { productId, rating, comment } = req.body;
 
     if (!productId) {
-      return res.status(400).json({ error: "Product ID is required" });
+      return res.status(400).json({ message: "Product ID is required" });
     }
 
     if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Rating must be between 1 and 5" });
+      return res.status(400).json({ message: "Rating must be between 1 and 5" });
     }
 
     const user = req.user;
@@ -20,7 +20,7 @@ export async function createProductReview(req, res) {
     // Verify product exists
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ error: "Product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     // Create or update review (one review per user per product)
@@ -50,10 +50,10 @@ export async function createProductReview(req, res) {
 
     // Handle duplicate key error
     if (error.code === 11000) {
-      return res.status(400).json({ error: "You have already reviewed this product" });
+      return res.status(400).json({ message: "You have already reviewed this product" });
     }
 
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -73,7 +73,7 @@ export async function getProductReviews(req, res) {
     res.status(200).json({ reviews });
   } catch (error) {
     console.error("Error in getProductReviews controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -91,15 +91,15 @@ export async function createReview(req, res) {
     // verify order exists and is delivered
     const order = await Order.findById(orderId);
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ message: "Order not found" });
     }
 
     if (order.clerkId !== user.clerkId) {
-      return res.status(403).json({ error: "Not authorized to review this order" });
+      return res.status(403).json({ message: "Not authorized to review this order" });
     }
 
     if (order.status !== "delivered") {
-      return res.status(400).json({ error: "Can only review delivered orders" });
+      return res.status(400).json({ message: "Can only review delivered orders" });
     }
 
     // verify product is in the order
@@ -107,7 +107,7 @@ export async function createReview(req, res) {
       (item) => item.product.toString() === productId.toString()
     );
     if (!productInOrder) {
-      return res.status(400).json({ error: "Product not found in this order" });
+      return res.status(400).json({ message: "Product not found in this order" });
     }
 
     // atomic update or create - scoped to PRODUCT (updates existing review if found)
@@ -128,7 +128,7 @@ export async function createReview(req, res) {
     console.error("Error in createReview controller:", error);
     // Return detailed error for debugging
     res.status(500).json({
-      error: "Internal server error",
+      message: "Internal server error",
       details: error.message,
       code: error.code
     });
@@ -143,11 +143,11 @@ export async function deleteReview(req, res) {
 
     const review = await Review.findById(reviewId);
     if (!review) {
-      return res.status(404).json({ error: "Review not found" });
+      return res.status(404).json({ message: "Review not found" });
     }
 
     if (review.userId.toString() !== user._id.toString()) {
-      return res.status(403).json({ error: "Not authorized to delete this review" });
+      return res.status(403).json({ message: "Not authorized to delete this review" });
     }
 
     const productId = review.productId;
@@ -159,7 +159,7 @@ export async function deleteReview(req, res) {
     res.status(200).json({ message: "Review deleted successfully" });
   } catch (error) {
     console.error("Error in deleteReview controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 

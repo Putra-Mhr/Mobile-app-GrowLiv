@@ -12,13 +12,13 @@ export async function createSnapTransaction(req, res) {
 
     // Validate cart items
     if (!cartItems || cartItems.length === 0) {
-      return res.status(400).json({ error: "Cart is empty" });
+      return res.status(400).json({ message: "Cart is empty" });
     }
 
     // Check if address has coordinates for shipping calculation
     if (!shippingAddress.coordinates?.latitude || !shippingAddress.coordinates?.longitude) {
       return res.status(400).json({
-        error: "Please update your delivery address with location coordinates for shipping calculation",
+        message: "Please update your delivery address with location coordinates for shipping calculation",
       });
     }
 
@@ -30,11 +30,11 @@ export async function createSnapTransaction(req, res) {
     for (const item of cartItems) {
       const product = await Product.findById(item.product._id).populate("store");
       if (!product) {
-        return res.status(404).json({ error: `Product ${item.product.name} not found` });
+        return res.status(404).json({ message: `Product ${item.product.name} not found` });
       }
 
       if (product.stock < item.quantity) {
-        return res.status(400).json({ error: `Insufficient stock for ${product.name}` });
+        return res.status(400).json({ message: `Insufficient stock for ${product.name}` });
       }
 
       subtotal += product.price * item.quantity;
@@ -66,7 +66,7 @@ export async function createSnapTransaction(req, res) {
     } catch (error) {
       console.error("Shipping calculation error:", error);
       return res.status(400).json({
-        error: error.message || "Failed to calculate shipping cost",
+        message: error.message || "Failed to calculate shipping cost",
       });
     }
 
@@ -75,7 +75,7 @@ export async function createSnapTransaction(req, res) {
     const total = subtotal + shipping + admin;
 
     if (total <= 0) {
-      return res.status(400).json({ error: "Invalid order total" });
+      return res.status(400).json({ message: "Invalid order total" });
     }
 
     const checkoutId = uuidv4(); // Unique ID to group split orders
@@ -205,7 +205,7 @@ export async function createSnapTransaction(req, res) {
       console.error("Validation Details:", JSON.stringify(error.errors, null, 2));
     }
     res.status(500).json({
-      error: "Failed to create payment transaction",
+      message: "Failed to create payment transaction",
       details: error.message
     });
   }

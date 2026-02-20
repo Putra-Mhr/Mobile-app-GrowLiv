@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import cloudinary from "../config/cloudinary.js";
 import { Product } from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
@@ -5,6 +6,7 @@ import { User } from "../models/user.model.js";
 import { Store } from "../models/store.model.js";
 import { Treasury } from "../models/treasury.model.js";
 import { Payout } from "../models/payout.model.js";
+import { createNotificationForUser } from "./notification.controller.js";
 
 export async function createProduct(req, res) {
   try {
@@ -155,17 +157,35 @@ export async function updateProduct(req, res) {
   }
 }
 
-export async function getAllOrders(_, res) {
+export async function getAllOrders(req, res) {
   try {
-    const orders = await Order.find()
-      .populate("user", "name email")
-      .populate("orderItems.product")
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const status = req.query.status; // optional status filter
 
-    res.status(200).json({ orders });
+    const filter = {};
+    if (status) filter.status = status;
+
+    const [orders, totalOrders] = await Promise.all([
+      Order.find(filter)
+        .populate("user", "name email")
+        .populate("orderItems.product")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Order.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      orders,
+      totalOrders,
+      totalPages: Math.ceil(totalOrders / limit),
+      currentPage: page,
+    });
   } catch (error) {
     console.error("Error in getAllOrders controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -174,13 +194,13 @@ export async function updateOrderStatus(req, res) {
     const { orderId } = req.params;
     const { status } = req.body;
 
-    if (!["pending", "shipped", "delivered"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status" });
+    if (!["pending", "shipped", "delivered", "canceled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     const order = await Order.findById(orderId);
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
+      return res.status(404).json({ message: "Order not found" });
     }
 
     order.status = status;
@@ -193,9 +213,51 @@ export async function updateOrderStatus(req, res) {
       order.deliveredAt = new Date();
     }
 
-    await order.save();
+    // Handle cancellation refund (only if order was paid)
+    if (status === "canceled" && order.isPaid) {
+      // 1. Restore product stock
+      for (const item of order.orderItems) {
+        const product = await Product.findById(item.product);
+        if (product) {
+          product.stock += item.quantity;
+          await product.save();
+          console.log(`📦 Stock restored: ${product.name} +${item.quantity}`);
+        }
+      }
 
-    // Add tracking history based on status
+      // 2. Reverse treasury entries
+      try {
+        const sellerAmount = order.sellerEarnings ||
+          order.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const shippingCost = order.shippingCost || 0;
+        const adminFee = order.adminFee || 0;
+
+        const treasury = await Treasury.findOne();
+        if (treasury) {
+          treasury.adminFeeBalance -= adminFee;
+          treasury.shippingBalance -= shippingCost;
+          treasury.sellerPendingBalance -= sellerAmount;
+          treasury.totalOrdersProcessed -= 1;
+          await treasury.save();
+          console.log(`💰 Treasury reversed for canceled order: ${order._id}`);
+        }
+      } catch (treasuryError) {
+        console.error("⚠️ Failed to reverse treasury:", treasuryError.message);
+      }
+
+      // 3. Cancel payout records
+      try {
+        await Payout.updateMany(
+          { order: order._id, status: "pending" },
+          { $set: { status: "cancelled", notes: "Order cancelled by admin" } }
+        );
+        console.log(`📝 Payout records cancelled for order: ${order._id}`);
+      } catch (payoutError) {
+        console.error("⚠️ Failed to cancel payouts:", payoutError.message);
+      }
+    }
+
+    // Build tracking history entry
     let title = "Status Diperbarui";
     let description = `Status pesanan diubah menjadi ${status}`;
 
@@ -207,10 +269,10 @@ export async function updateOrderStatus(req, res) {
       description = "Pesanan telah diterima di alamat tujuan. Terima kasih telah berbelanja!";
     } else if (status === "canceled") {
       title = "Pesanan Dibatalkan";
-      description = "Pesanan dibatalkan oleh admin";
+      description = "Pesanan dibatalkan oleh admin. Stok telah dikembalikan.";
     }
 
-    // Push to tracking history
+    // Push tracking history BEFORE save (single atomic save)
     order.trackingHistory.push({
       status,
       title,
@@ -220,10 +282,28 @@ export async function updateOrderStatus(req, res) {
 
     await order.save();
 
+    // Notify seller when order is delivered
+    if (status === "delivered" && order.store) {
+      try {
+        const store = await Store.findById(order.store);
+        if (store && store.user) {
+          await createNotificationForUser(
+            store.user,
+            "order_status",
+            "Pesanan Diterima ✅",
+            `Pesanan #${order._id.toString().slice(-8).toUpperCase()} telah diterima oleh pembeli.`,
+            { orderId: order._id, type: "order_delivered" }
+          );
+        }
+      } catch (notifError) {
+        console.error("⚠️ Failed to notify seller about delivery:", notifError.message);
+      }
+    }
+
     res.status(200).json({ message: "Order status updated successfully", order });
   } catch (error) {
     console.error("Error in updateOrderStatus controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -453,7 +533,7 @@ export const getPendingPayoutRecords = async (req, res) => {
 };
 
 /**
- * Process payout to a store - NEW FLOW
+ * Process payout to a store - with transaction safety
  * Transfers from Platform Treasury to Store Balance
  * POST /api/admin/payouts/:storeId
  */
@@ -491,59 +571,107 @@ export const processPayout = async (req, res) => {
       return res.status(400).json({ message: "Insufficient treasury balance" });
     }
 
-    // Process payout: Deduct from treasury
-    await treasury.processPayout(payoutAmount);
+    // Try to use transaction for atomicity
+    let session = null;
+    let useTransaction = true;
 
-    // Credit to store balance
-    store.balance = (store.balance || 0) + payoutAmount;
-    store.totalRevenue = (store.totalRevenue || 0) + payoutAmount;
-    await store.save();
-
-    // Mark pending payouts as completed (up to the payout amount)
-    let remainingAmount = payoutAmount;
-    for (const payout of pendingPayoutsForStore) {
-      if (remainingAmount <= 0) break;
-
-      if (payout.amount <= remainingAmount) {
-        payout.status = "completed";
-        payout.processedBy = req.user?._id;
-        payout.notes = notes || payout.notes;
-        await payout.save();
-        remainingAmount -= payout.amount;
-      } else {
-        // Partial payout - split the record
-        payout.amount -= remainingAmount;
-        await payout.save();
-
-        // Create completed record for the paid portion
-        await Payout.create({
-          store: storeId,
-          order: payout.order,
-          amount: remainingAmount,
-          type: "manual_payout",
-          status: "completed",
-          processedBy: req.user?._id,
-          notes: notes || `Partial payout from ${payout._id}`,
-        });
-        remainingAmount = 0;
-      }
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch (sessionError) {
+      console.log("⚠️ Transactions not supported, running payout without transaction...");
+      useTransaction = false;
+      session = null;
     }
 
-    console.log(`✅ Payout processed: Rp ${payoutAmount.toLocaleString('id-ID')} to ${store.name}`);
+    try {
+      // Process payout: Deduct from treasury
+      await treasury.processPayout(payoutAmount);
 
-    res.status(200).json({
-      message: `Berhasil mencairkan Rp ${payoutAmount.toLocaleString('id-ID')} ke ${store.name}`,
-      store: {
-        _id: store._id,
-        name: store.name,
-        balance: store.balance,
-        user: store.user,
-      },
-      payoutAmount,
-      treasury: {
-        sellerPendingBalance: treasury.sellerPendingBalance,
-      },
-    });
+      // Credit to store balance
+      store.balance = (store.balance || 0) + payoutAmount;
+      store.totalRevenue = (store.totalRevenue || 0) + payoutAmount;
+
+      if (useTransaction) {
+        await store.save({ session });
+      } else {
+        await store.save();
+      }
+
+      // Mark pending payouts as completed (up to the payout amount)
+      let remainingAmount = payoutAmount;
+      for (const payout of pendingPayoutsForStore) {
+        if (remainingAmount <= 0) break;
+
+        if (payout.amount <= remainingAmount) {
+          payout.status = "completed";
+          payout.processedBy = req.user?._id;
+          payout.notes = notes || payout.notes;
+          if (useTransaction) {
+            await payout.save({ session });
+          } else {
+            await payout.save();
+          }
+          remainingAmount -= payout.amount;
+        } else {
+          // Partial payout - split the record
+          payout.amount -= remainingAmount;
+          if (useTransaction) {
+            await payout.save({ session });
+          } else {
+            await payout.save();
+          }
+
+          // Create completed record for the paid portion
+          const partialData = {
+            store: storeId,
+            order: payout.order,
+            amount: remainingAmount,
+            type: "manual_payout",
+            status: "completed",
+            processedBy: req.user?._id,
+            notes: notes || `Partial payout from ${payout._id}`,
+          };
+          if (useTransaction) {
+            await Payout.create([partialData], { session });
+          } else {
+            await Payout.create(partialData);
+          }
+          remainingAmount = 0;
+        }
+      }
+
+      // Commit transaction
+      if (useTransaction && session) {
+        await session.commitTransaction();
+      }
+
+      console.log(`✅ Payout processed: Rp ${payoutAmount.toLocaleString('id-ID')} to ${store.name}`);
+
+      res.status(200).json({
+        message: `Berhasil mencairkan Rp ${payoutAmount.toLocaleString('id-ID')} ke ${store.name}`,
+        store: {
+          _id: store._id,
+          name: store.name,
+          balance: store.balance,
+          user: store.user,
+        },
+        payoutAmount,
+        treasury: {
+          sellerPendingBalance: treasury.sellerPendingBalance,
+        },
+      });
+    } catch (innerError) {
+      if (useTransaction && session) {
+        await session.abortTransaction();
+        console.error("❌ Payout transaction aborted");
+      }
+      throw innerError;
+    } finally {
+      if (session) {
+        session.endSession();
+      }
+    }
   } catch (error) {
     console.error("Error processing payout:", error);
     res.status(500).json({ message: error.message || "Failed to process payout" });
@@ -626,5 +754,51 @@ export const getAdminDashboardExtended = async (req, res) => {
   } catch (error) {
     console.error("Error fetching extended dashboard stats:", error);
     res.status(500).json({ message: "Failed to fetch dashboard stats" });
+  }
+};
+
+/**
+ * Sync store counters (totalProducts, totalSales) from actual data
+ * POST /api/admin/stores/sync-counters
+ */
+export const syncStoreCounters = async (req, res) => {
+  try {
+    const stores = await Store.find();
+    const results = [];
+
+    for (const store of stores) {
+      const [actualProducts, actualSales] = await Promise.all([
+        Product.countDocuments({ store: store._id }),
+        Order.countDocuments({ store: store._id, isPaid: true }),
+      ]);
+
+      const changed =
+        store.totalProducts !== actualProducts || store.totalSales !== actualSales;
+
+      if (changed) {
+        store.totalProducts = actualProducts;
+        store.totalSales = actualSales;
+        await store.save();
+      }
+
+      results.push({
+        storeId: store._id,
+        name: store.name,
+        totalProducts: actualProducts,
+        totalSales: actualSales,
+        wasFixed: changed,
+      });
+    }
+
+    const fixed = results.filter((r) => r.wasFixed).length;
+    console.log(`🔄 Store counters synced: ${fixed}/${results.length} stores updated`);
+
+    res.status(200).json({
+      message: `${fixed} store(s) updated out of ${results.length}`,
+      results,
+    });
+  } catch (error) {
+    console.error("Error syncing store counters:", error);
+    res.status(500).json({ message: "Failed to sync store counters" });
   }
 };

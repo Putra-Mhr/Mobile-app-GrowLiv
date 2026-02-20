@@ -18,7 +18,7 @@ export async function getCart(req, res) {
     res.status(200).json({ cart });
   } catch (error) {
     console.error("Error in getCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -29,11 +29,11 @@ export async function addToCart(req, res) {
     // validate product exists and has stock
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ error: "Product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     if (product.stock < quantity) {
-      return res.status(400).json({ error: "Insufficient stock" });
+      return res.status(400).json({ message: "Insufficient stock" });
     }
 
     let cart = await Cart.findOne({ clerkId: req.user.clerkId });
@@ -54,7 +54,7 @@ export async function addToCart(req, res) {
       // increment quantity by 1
       const newQuantity = existingItem.quantity + 1;
       if (product.stock < newQuantity) {
-        return res.status(400).json({ error: "Insufficient stock" });
+        return res.status(400).json({ message: "Insufficient stock" });
       }
       existingItem.quantity = newQuantity;
     } else {
@@ -67,7 +67,7 @@ export async function addToCart(req, res) {
     res.status(200).json({ message: "Item added to cart", cart });
   } catch (error) {
     console.error("Error in addToCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -77,27 +77,27 @@ export async function updateCartItem(req, res) {
     const { quantity } = req.body;
 
     if (quantity < 1) {
-      return res.status(400).json({ error: "Quantity must be at least 1" });
+      return res.status(400).json({ message: "Quantity must be at least 1" });
     }
 
     const cart = await Cart.findOne({ clerkId: req.user.clerkId });
     if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
+      return res.status(404).json({ message: "Cart not found" });
     }
 
     const itemIndex = cart.items.findIndex((item) => item.product.toString() === productId);
     if (itemIndex === -1) {
-      return res.status(404).json({ error: "Item not found in cart" });
+      return res.status(404).json({ message: "Item not found in cart" });
     }
 
     // check if product exists & validate stock
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ error: "Product not found" });
+      return res.status(404).json({ message: "Product not found" });
     }
 
     if (product.stock < quantity) {
-      return res.status(400).json({ error: "Insufficient stock" });
+      return res.status(400).json({ message: "Insufficient stock" });
     }
 
     cart.items[itemIndex].quantity = quantity;
@@ -106,7 +106,7 @@ export async function updateCartItem(req, res) {
     res.status(200).json({ message: "Cart updated successfully", cart });
   } catch (error) {
     console.error("Error in updateCartItem controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -125,7 +125,7 @@ export async function removeFromCart(req, res) {
     res.status(200).json({ message: "Item removed from cart", cart });
   } catch (error) {
     console.error("Error in removeFromCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 }
 
@@ -145,7 +145,7 @@ export const clearCart = async (req, res) => {
     res.status(200).json({ message: "Cart cleared", cart });
   } catch (error) {
     console.error("Error in clearCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
@@ -154,7 +154,7 @@ export async function calculateShipping(req, res) {
     const { coordinates } = req.body;
 
     if (!coordinates?.latitude || !coordinates?.longitude) {
-      return res.status(400).json({ error: "Coordinates required" });
+      return res.status(400).json({ message: "Coordinates required" });
     }
 
     const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
@@ -172,12 +172,70 @@ export async function calculateShipping(req, res) {
     } catch (calcError) {
       console.warn("Shipping calc failed (probably missing location data), defaulting to flat rate:", calcError.message);
 
-      return res.status(400).json({ error: calcError.message });
+      return res.status(400).json({ message: calcError.message });
     }
 
     res.status(200).json(shipping);
   } catch (error) {
     console.error("Error in calculateShipping controller:", error);
-    res.status(500).json({ error: "Failed to calculate shipping" });
+    res.status(500).json({ message: "Failed to calculate shipping" });
+  }
+}
+
+/**
+ * Validate cart items stock before checkout
+ * POST /api/cart/validate
+ */
+export async function validateCartStock(req, res) {
+  try {
+    const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
+
+    if (!cart || cart.items.length === 0) {
+      return res.status(200).json({ valid: true, issues: [] });
+    }
+
+    const issues = [];
+    const validItems = [];
+
+    for (const item of cart.items) {
+      if (!item.product) {
+        issues.push({
+          productId: item.product,
+          type: "not_found",
+          message: "Produk tidak tersedia lagi",
+        });
+        continue;
+      }
+
+      if (item.product.stock <= 0) {
+        issues.push({
+          productId: item.product._id,
+          name: item.product.name,
+          type: "out_of_stock",
+          message: `${item.product.name} sudah habis`,
+        });
+      } else if (item.product.stock < item.quantity) {
+        issues.push({
+          productId: item.product._id,
+          name: item.product.name,
+          type: "insufficient_stock",
+          requested: item.quantity,
+          available: item.product.stock,
+          message: `${item.product.name} hanya tersisa ${item.product.stock} unit`,
+        });
+      } else {
+        validItems.push(item);
+      }
+    }
+
+    res.status(200).json({
+      valid: issues.length === 0,
+      issues,
+      totalItems: cart.items.length,
+      validItems: validItems.length,
+    });
+  } catch (error) {
+    console.error("Error in validateCartStock:", error);
+    res.status(500).json({ message: "Failed to validate cart" });
   }
 }

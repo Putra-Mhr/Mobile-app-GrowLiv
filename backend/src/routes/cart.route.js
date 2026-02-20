@@ -7,6 +7,7 @@ import {
   removeFromCart,
   updateCartItem,
   calculateShipping,
+  validateCartStock,
 } from "../controllers/cart.controller.js";
 
 const router = Router();
@@ -20,5 +21,6 @@ router.delete("/:productId", removeFromCart);
 
 router.delete("/", clearCart);
 router.post("/shipping", calculateShipping);
+router.post("/validate", validateCartStock);
 
 export default router;
