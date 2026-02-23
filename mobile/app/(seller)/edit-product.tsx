@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -12,8 +12,8 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, Stack } from 'expo-router';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/lib/api';
 import { useNotification } from '@/context/NotificationContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,10 +27,11 @@ interface ProductFormData {
     price: string;
     stock: string;
     category: string;
-    images: string[]; // Base64 images
+    images: string[]; // Base64 images (new) or URLs (existing)
 }
 
-export default function AddProductScreen() {
+export default function EditProductScreen() {
+    const { id } = useLocalSearchParams<{ id: string }>();
     const api = useApi();
     const queryClient = useQueryClient();
     const { showToast } = useNotification();
@@ -43,40 +44,62 @@ export default function AddProductScreen() {
         category: '',
         images: [],
     });
+    // Track display URIs (for preview) separately from upload data
     const [imageUris, setImageUris] = useState<string[]>([]);
+    // Track which images are existing URLs vs new base64
+    const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+    const [newBase64Images, setNewBase64Images] = useState<string[]>([]);
 
-    // Reset form function
-    const resetForm = () => {
-        setFormData({
-            name: '',
-            description: '',
-            price: '',
-            stock: '',
-            category: '',
-            images: [],
-        });
-        setImageUris([]);
-    };
+    // Fetch existing product data
+    const { data: product, isLoading } = useQuery({
+        queryKey: ['seller-product', id],
+        queryFn: async () => {
+            const response = await api.get(`/seller/products/${id}`);
+            return response.data;
+        },
+        enabled: !!id,
+    });
 
-    const createMutation = useMutation({
+    // Populate form when product data loads
+    useEffect(() => {
+        if (product) {
+            setFormData({
+                name: product.name || '',
+                description: product.description || '',
+                price: String(product.price || ''),
+                stock: String(product.stock || '0'),
+                category: product.category || '',
+                images: product.images || [],
+            });
+            setImageUris(product.images || []);
+            setExistingImageUrls(product.images || []);
+            setNewBase64Images([]);
+        }
+    }, [product]);
+
+    const updateMutation = useMutation({
         mutationFn: async (data: ProductFormData) => {
-            const response = await api.post('/seller/products', {
-                ...data,
+            // Build the images array: keep existing URLs + add new base64
+            const allImages = [...existingImageUrls, ...newBase64Images];
+            const response = await api.put(`/seller/products/${id}`, {
+                name: data.name,
+                description: data.description,
                 price: Number(data.price),
                 stock: Number(data.stock),
+                category: data.category,
+                images: allImages,
             });
             return response.data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+            queryClient.invalidateQueries({ queryKey: ['seller-product', id] });
             queryClient.invalidateQueries({ queryKey: ['seller-dashboard'] });
-            showToast('success', 'Produk berhasil ditambahkan! 🎉');
-            resetForm(); // Reset form after success
+            showToast('success', 'Produk berhasil diperbarui! ✅');
             router.back();
         },
         onError: (error: any) => {
-            const message = error.response?.data?.message || error.message || 'Gagal menambahkan produk';
-            // Handle entity too large error
+            const message = error.response?.data?.message || error.message || 'Gagal memperbarui produk';
             if (error.response?.status === 413 || message.includes('too large')) {
                 showToast('error', 'Ukuran gambar terlalu besar. Coba gunakan gambar yang lebih kecil.');
             } else {
@@ -86,34 +109,44 @@ export default function AddProductScreen() {
     });
 
     const pickImages = async () => {
+        const totalImages = existingImageUrls.length + newBase64Images.length;
+        const remaining = 5 - totalImages;
+        if (remaining <= 0) {
+            showToast('error', 'Maksimal 5 gambar');
+            return;
+        }
+
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsMultipleSelection: true,
-            selectionLimit: 5,
-            quality: 0.4, // Reduced quality to prevent entity too large
+            selectionLimit: remaining,
+            quality: 0.4,
             base64: true,
         });
 
         if (!result.canceled && result.assets.length > 0) {
-            const newUris = result.assets.map((asset: ImagePicker.ImagePickerAsset) => asset.uri);
-            const newBase64 = result.assets
-                .filter((asset: ImagePicker.ImagePickerAsset) => asset.base64)
-                .map((asset: ImagePicker.ImagePickerAsset) => `data:image/jpeg;base64,${asset.base64}`);
+            const newUris = result.assets.map((asset) => asset.uri);
+            const newB64 = result.assets
+                .filter((asset) => asset.base64)
+                .map((asset) => `data:image/jpeg;base64,${asset.base64}`);
 
             setImageUris(prev => [...prev, ...newUris].slice(0, 5));
-            setFormData(prev => ({
-                ...prev,
-                images: [...prev.images, ...newBase64].slice(0, 5),
-            }));
+            setNewBase64Images(prev => [...prev, ...newB64].slice(0, 5 - existingImageUrls.length));
         }
     };
 
     const removeImage = (index: number) => {
+        // Determine if this is an existing URL or a new image
+        if (index < existingImageUrls.length) {
+            // Remove from existing URLs
+            const newExisting = existingImageUrls.filter((_, i) => i !== index);
+            setExistingImageUrls(newExisting);
+        } else {
+            // Remove from new base64 images
+            const newIndex = index - existingImageUrls.length;
+            setNewBase64Images(prev => prev.filter((_, i) => i !== newIndex));
+        }
         setImageUris(prev => prev.filter((_, i) => i !== index));
-        setFormData(prev => ({
-            ...prev,
-            images: prev.images.filter((_, i) => i !== index),
-        }));
     };
 
     const handleSubmit = () => {
@@ -133,28 +166,51 @@ export default function AddProductScreen() {
             showToast('error', 'Pilih kategori produk');
             return;
         }
-        if (formData.images.length === 0) {
+        const totalImages = existingImageUrls.length + newBase64Images.length;
+        if (totalImages === 0) {
             showToast('error', 'Tambahkan minimal 1 foto produk');
             return;
         }
 
-        createMutation.mutate(formData);
+        updateMutation.mutate(formData);
     };
 
+    const totalImages = existingImageUrls.length + newBase64Images.length;
     const isFormValid =
         formData.name.trim() &&
         formData.description.trim() &&
         formData.price &&
         Number(formData.price) > 0 &&
         formData.category &&
-        formData.images.length > 0;
+        totalImages > 0;
+
+    if (isLoading) {
+        return (
+            <>
+                <Stack.Screen
+                    options={{
+                        headerShown: true,
+                        title: 'Edit Produk',
+                        headerStyle: { backgroundColor: '#22C55E' },
+                        headerTintColor: '#FFFFFF',
+                        headerTitleStyle: { fontWeight: 'bold' },
+                    }}
+                />
+                <View className="flex-1 items-center justify-center">
+                    <PageBackground />
+                    <ActivityIndicator size="large" color="#22C55E" />
+                    <Text className="text-gray-500 mt-3">Memuat data produk...</Text>
+                </View>
+            </>
+        );
+    }
 
     return (
         <>
             <Stack.Screen
                 options={{
                     headerShown: true,
-                    title: 'Tambah Produk',
+                    title: 'Edit Produk',
                     headerStyle: { backgroundColor: '#22C55E' },
                     headerTintColor: '#FFFFFF',
                     headerTitleStyle: { fontWeight: 'bold' },
@@ -179,22 +235,22 @@ export default function AddProductScreen() {
                                 <View className="flex-row items-center justify-between mb-2">
                                     <Text className="text-gray-700 font-semibold">Foto Produk *</Text>
                                     <View
-                                        className={`px-2.5 py-1 rounded-full ${imageUris.length === 0
-                                                ? 'bg-gray-100'
-                                                : imageUris.length >= 5
-                                                    ? 'bg-amber-100'
-                                                    : 'bg-green-100'
+                                        className={`px-2.5 py-1 rounded-full ${totalImages === 0
+                                            ? 'bg-gray-100'
+                                            : totalImages >= 5
+                                                ? 'bg-amber-100'
+                                                : 'bg-green-100'
                                             }`}
                                     >
                                         <Text
-                                            className={`text-xs font-bold ${imageUris.length === 0
-                                                    ? 'text-gray-400'
-                                                    : imageUris.length >= 5
-                                                        ? 'text-amber-600'
-                                                        : 'text-green-600'
+                                            className={`text-xs font-bold ${totalImages === 0
+                                                ? 'text-gray-400'
+                                                : totalImages >= 5
+                                                    ? 'text-amber-600'
+                                                    : 'text-green-600'
                                                 }`}
                                         >
-                                            {imageUris.length}/5 gambar
+                                            {totalImages}/5 gambar
                                         </Text>
                                     </View>
                                 </View>
@@ -222,7 +278,7 @@ export default function AddProductScreen() {
                                             </View>
                                         ))}
 
-                                        {imageUris.length < 5 && (
+                                        {totalImages < 5 && (
                                             <TouchableOpacity
                                                 className="w-[100px] h-[100px] bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 items-center justify-center"
                                                 onPress={pickImages}
@@ -320,19 +376,19 @@ export default function AddProductScreen() {
                             {/* Submit Button */}
                             <TouchableOpacity
                                 onPress={handleSubmit}
-                                disabled={!isFormValid || createMutation.isPending}
+                                disabled={!isFormValid || updateMutation.isPending}
                                 activeOpacity={0.8}
                             >
                                 <LinearGradient
                                     colors={isFormValid ? ['#22C55E', '#16A34A'] : ['#D1D5DB', '#9CA3AF']}
                                     className="py-4 rounded-2xl flex-row items-center justify-center"
                                 >
-                                    {createMutation.isPending ? (
+                                    {updateMutation.isPending ? (
                                         <ActivityIndicator color="#FFFFFF" />
                                     ) : (
                                         <>
-                                            <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-                                            <Text className="text-white font-bold text-lg ml-2">Tambah Produk</Text>
+                                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                                            <Text className="text-white font-bold text-lg ml-2">Simpan Perubahan</Text>
                                         </>
                                     )}
                                 </LinearGradient>

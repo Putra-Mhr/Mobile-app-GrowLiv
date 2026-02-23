@@ -35,7 +35,7 @@ function WishlistScreen() {
           router.push('/(tabs)/cart');
         },
         onError: (error: any) => {
-          showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambahkan ke keranjang');
+          showToast('error', 'Gagal', error?.response?.data?.message || 'Gagal menambahkan ke keranjang');
         },
       }
     );

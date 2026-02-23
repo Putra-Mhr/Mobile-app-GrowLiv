@@ -62,11 +62,14 @@ export function calculateCartShipping(cartItems, deliveryCoordinates) {
 
     // Group items by unique product location (vendor)
     const locationGroups = new Map();
+    const warnings = [];
 
     for (const item of cartItems) {
         if (!item.product?.location?.latitude || !item.product?.location?.longitude) {
             // Fallback to Jakarta coordinates if product missing location
-            console.warn(`⚠️ Product "${item.product?.name || "unknown"}" missing location - using Jakarta default`);
+            const productName = item.product?.name || "unknown";
+            console.warn(`⚠️ Product "${productName}" missing location - using Jakarta default`);
+            warnings.push(`Lokasi produk "${productName}" tidak tersedia, ongkir dihitung dari Jakarta`);
             if (!item.product.location) item.product.location = {};
             item.product.location.latitude = -6.175392;
             item.product.location.longitude = 106.827153;
@@ -110,5 +113,6 @@ export function calculateCartShipping(cartItems, deliveryCoordinates) {
     return {
         total: totalShipping,
         breakdown: shippingBreakdown,
+        warnings,
     };
 }

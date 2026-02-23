@@ -22,6 +22,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import storeRoutes from "./routes/store.route.js";
 import sellerRoutes from "./routes/seller.route.js";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { requestLogger } from "./middleware/logger.middleware.js";
 
 const app = express();
 
@@ -29,14 +30,16 @@ const __dirname = path.resolve();
 
 app.use(express.json());
 app.use(clerkMiddleware()); // adds auth object under the req => req.auth
+app.use(requestLogger);
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     // Allow admin panel
     if (origin === ENV.CLIENT_URL) return callback(null, true);
-    // Allow any localhost for development
-    if (origin.includes("localhost") || origin.includes("127.0.0.1")) return callback(null, true);
+    // Allow any localhost for development only
+    if (ENV.NODE_ENV !== "production" &&
+      (origin.includes("localhost") || origin.includes("127.0.0.1"))) return callback(null, true);
     callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
@@ -61,6 +64,11 @@ const paymentLimiter = rateLimit({
 
 app.use("/api", generalLimiter);
 
+// Health check (before routes — always accessible)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ message: "Success", timestamp: new Date().toISOString() });
+});
+
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
 app.use("/api/admin", adminRoutes);
@@ -74,11 +82,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/seller", sellerRoutes);
 
+// Global error handler (must be AFTER routes)
 app.use(errorHandler);
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ message: "Success" });
-});
 
 // make our app ready for deployment
 if (ENV.NODE_ENV === "production") {
@@ -106,4 +111,3 @@ const startServer = async () => {
 };
 
 startServer();
-

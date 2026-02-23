@@ -1,5 +1,6 @@
 import ProductsGrid from "@/components/ProductsGrid";
 import useProducts from "@/hooks/useProducts";
+import useProductSearch from "@/hooks/useProductSearch";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
@@ -26,7 +27,16 @@ const ShopScreen = () => {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [activeFilter, setActiveFilter] = useState<"all" | "popular">("all");
 
-    const { data: products, isLoading, isError } = useProducts();
+    const { data: products, isLoading: isLoadingAll, isError } = useProducts();
+
+    // Server-side search — fires when query ≥ 2 chars or category selected
+    const isSearching = searchQuery.trim().length >= 2;
+    const { data: searchResult, isLoading: isSearchLoading } = useProductSearch({
+        q: isSearching ? searchQuery : undefined,
+        category: selectedCategory !== "All" ? selectedCategory : undefined,
+    });
+
+    const isLoading = isSearching ? isSearchLoading : isLoadingAll;
 
     // Set filter based on URL param on mount
     useEffect(() => {
@@ -48,6 +58,16 @@ const ShopScreen = () => {
     };
 
     const filteredProducts = useMemo(() => {
+        // Use server-side results when actively searching
+        if (isSearching && searchResult?.products) {
+            let filtered = [...searchResult.products];
+            if (activeFilter === "popular") {
+                filtered = filtered.filter((product) => isFromThisWeek(product.createdAt));
+            }
+            return filtered;
+        }
+
+        // Fallback to client-side filtering for browsing
         if (!products) return [];
 
         let filtered = [...products];
@@ -64,15 +84,8 @@ const ShopScreen = () => {
             );
         }
 
-        // Filter by search query
-        if (searchQuery.trim()) {
-            filtered = filtered.filter((product) =>
-                product.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
         return filtered;
-    }, [products, selectedCategory, searchQuery, activeFilter]);
+    }, [products, searchResult, selectedCategory, searchQuery, activeFilter, isSearching]);
 
     const getHeaderTitle = () => {
         if (activeFilter === "popular") {

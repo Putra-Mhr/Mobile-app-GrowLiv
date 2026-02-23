@@ -39,7 +39,7 @@ const ProductDetailScreen = () => {
           showToast(
             "error",
             "Gagal",
-            error?.response?.data?.error || "Gagal menambahkan ke keranjang"
+            error?.response?.data?.message || "Gagal menambahkan ke keranjang"
           );
         },
       }
