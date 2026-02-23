@@ -4,10 +4,10 @@ import { useEffect, useRef } from "react";
 
 // API URL from environment variable (set in .env)
 // Default fallback for development
-const API_URL = "http://192.168.18.29:3000/api";
+// const API_URL = "http://192.168.18.29:3000/api";
 
 // API URL for production
-// const API_URL = "https://mobile-app-growliv-zm3uu.sevalla.app/api";
+const API_URL = "https://mobile-app-growliv-zm3uu.sevalla.app/api";
 
 // Create axios instance ONCE outside the hook
 const api = axios.create({
