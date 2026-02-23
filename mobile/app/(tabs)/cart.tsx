@@ -1,8 +1,9 @@
 import { useAddresses } from "@/hooks/useAddresses";
 import useCart from "@/hooks/useCart";
+import { useCartValidation } from "@/hooks/useCartValidation";
 import { useApi } from "@/lib/api";
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { useState, useEffect, useRef } from "react";
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Address } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -31,6 +32,7 @@ const CartScreen = () => {
   } = useCart();
   const { addresses } = useAddresses();
   const { showToast, showConfirmation } = useNotification();
+  const { validateCart, isValidating } = useCartValidation();
 
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
@@ -39,9 +41,17 @@ const CartScreen = () => {
   const [currentMidtransOrderId, setCurrentMidtransOrderId] = useState<string | null>(null);
   const [shippingCost, setShippingCost] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Ref for synchronous check to prevent race condition
   const isProcessingPaymentRef = useRef(false);
+
+  // ── Pull-to-refresh ──────────────────────────────────────
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
 
   // Set default address on load
   useEffect(() => {
@@ -118,8 +128,22 @@ const CartScreen = () => {
       return;
     }
 
-
-
+    // ── Pre-checkout stock validation ───────────────────────
+    try {
+      const validation = await validateCart();
+      if (!validation.valid) {
+        const issueNames = validation.issues.map((i) => i.name).join(", ");
+        showToast(
+          'warning',
+          'Stok Berubah',
+          `Beberapa produk stoknya tidak cukup: ${issueNames}. Silakan sesuaikan keranjang.`
+        );
+        return;
+      }
+    } catch {
+      showToast('warning', 'Gagal Validasi', 'Tidak bisa cek stok. Silakan coba lagi.');
+      return;
+    }
 
     try {
       setPaymentLoading(true);
@@ -150,7 +174,7 @@ const CartScreen = () => {
         error: error instanceof Error ? error.message : "Unknown error",
         response: error?.response?.data,
       });
-      const errorMessage = error?.response?.data?.error || 'Gagal memproses pembayaran. Silakan coba lagi.';
+      const errorMessage = error?.response?.data?.message || 'Gagal memproses pembayaran. Silakan coba lagi.';
       showToast('error', 'Pembayaran Gagal', errorMessage);
     } finally {
       setPaymentLoading(false);
@@ -274,6 +298,14 @@ const CartScreen = () => {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 240 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#22C55E"]}
+            tintColor="#22C55E"
+          />
+        }
       >
         <View className="px-5 gap-3 mt-4">
           {cartItems.map((item, index) => (
@@ -410,7 +442,7 @@ const CartScreen = () => {
           style={{ shadowColor: "#22C55E", shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 }}
           activeOpacity={0.9}
           onPress={handlePayment}
-          disabled={paymentLoading}
+          disabled={paymentLoading || isValidating}
         >
           <LinearGradient
             colors={["#22C55E", "#15803D"]}

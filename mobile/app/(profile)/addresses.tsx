@@ -133,7 +133,7 @@ function AddressesScreen() {
             showToast('success', 'Berhasil! ✓', 'Alamat berhasil diperbarui');
           },
           onError: (error: any) => {
-            showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal memperbarui alamat');
+            showToast('error', 'Gagal', error?.response?.data?.message || 'Gagal memperbarui alamat');
           },
         }
       );
@@ -144,7 +144,7 @@ function AddressesScreen() {
           showToast('success', 'Berhasil! ✓', 'Alamat baru berhasil ditambahkan');
         },
         onError: (error: any) => {
-          showToast('error', 'Gagal', error?.response?.data?.error || 'Gagal menambah alamat');
+          showToast('error', 'Gagal', error?.response?.data?.message || 'Gagal menambah alamat');
         },
       });
     }

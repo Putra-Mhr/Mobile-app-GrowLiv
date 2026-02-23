@@ -62,7 +62,7 @@ export default function StoreProfileScreen() {
                     showToast('success', 'Ditambahkan!', `${productName} masuk ke keranjang`);
                 },
                 onError: (error: any) => {
-                    showToast('error', 'Gagal', error?.response?.data?.error || 'Tidak dapat menambahkan ke keranjang');
+                    showToast('error', 'Gagal', error?.response?.data?.message || 'Tidak dapat menambahkan ke keranjang');
                 },
             }
         );

@@ -37,7 +37,7 @@ const ProductsGrid = ({ products, isLoading, isError, ListHeaderComponent }: Pro
           router.push('/(tabs)/cart');
         },
         onError: (error: any) => {
-          showToast('error', 'Failed to Add', error?.response?.data?.error || 'Could not add item to cart');
+          showToast('error', 'Failed to Add', error?.response?.data?.message || 'Could not add item to cart');
         },
       }
     );

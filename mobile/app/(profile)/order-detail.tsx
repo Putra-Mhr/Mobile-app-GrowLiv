@@ -65,7 +65,7 @@ export default function OrderDetailScreen() {
             setProductRatings({});
             setProductComments({});
         } catch (error: any) {
-            showToast('error', 'Gagal Mengirim', error?.response?.data?.error || 'Gagal mengirim rating');
+            showToast('error', 'Gagal Mengirim', error?.response?.data?.message || 'Gagal mengirim rating');
         }
     };
 

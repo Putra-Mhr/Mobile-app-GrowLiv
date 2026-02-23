@@ -23,7 +23,7 @@ const useWishlist = () => {
         const error = err as AxiosError;
         // Silently return empty array for auth/user errors
         const status = error.response?.status;
-        if (status === 401 || status === 403 || status === 404 || status === 500) {
+        if (status === 401 || status === 403 || status === 404) {
           // New user or not synced yet - return empty wishlist
           return [] as Product[];
         }

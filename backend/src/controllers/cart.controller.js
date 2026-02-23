@@ -1,183 +1,196 @@
 import { Cart } from "../models/cart.model.js";
 import { Product } from "../models/product.model.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { AppError } from "../utils/AppError.js";
 
-export async function getCart(req, res) {
-  try {
-    let cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
+export const getCart = asyncHandler(async (req, res) => {
+  let cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
 
-    if (!cart) {
-      const user = req.user;
-
-      cart = await Cart.create({
-        user: user._id,
-        clerkId: user.clerkId,
-        items: [],
-      });
-    }
-
-    res.status(200).json({ cart });
-  } catch (error) {
-    console.error("Error in getCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
+  if (!cart) {
+    const user = req.user;
+    cart = await Cart.create({
+      user: user._id,
+      clerkId: user.clerkId,
+      items: [],
+    });
   }
-}
 
-export async function addToCart(req, res) {
+  res.status(200).json({ cart });
+});
+
+export const addToCart = asyncHandler(async (req, res) => {
+  const { productId, quantity = 1 } = req.body;
+
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+
+  if (product.stock < quantity) {
+    throw new AppError("Insufficient stock", 400);
+  }
+
+  let cart = await Cart.findOne({ clerkId: req.user.clerkId });
+
+  if (!cart) {
+    const user = req.user;
+    cart = await Cart.create({
+      user: user._id,
+      clerkId: user.clerkId,
+      items: [],
+    });
+  }
+
+  const existingItem = cart.items.find((item) => item.product.toString() === productId);
+  if (existingItem) {
+    const newQuantity = existingItem.quantity + 1;
+    if (product.stock < newQuantity) {
+      throw new AppError("Insufficient stock", 400);
+    }
+    existingItem.quantity = newQuantity;
+  } else {
+    cart.items.push({ product: productId, quantity });
+  }
+
+  await cart.save();
+  res.status(200).json({ message: "Item added to cart", cart });
+});
+
+export const updateCartItem = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+  const { quantity } = req.body;
+
+  if (quantity < 1) {
+    throw new AppError("Quantity must be at least 1", 400);
+  }
+
+  const cart = await Cart.findOne({ clerkId: req.user.clerkId });
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  const itemIndex = cart.items.findIndex((item) => item.product.toString() === productId);
+  if (itemIndex === -1) {
+    throw new AppError("Item not found in cart", 404);
+  }
+
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+
+  if (product.stock < quantity) {
+    throw new AppError("Insufficient stock", 400);
+  }
+
+  cart.items[itemIndex].quantity = quantity;
+  await cart.save();
+
+  res.status(200).json({ message: "Cart updated successfully", cart });
+});
+
+export const removeFromCart = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const cart = await Cart.findOne({ clerkId: req.user.clerkId });
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  cart.items = cart.items.filter((item) => item.product.toString() !== productId);
+  await cart.save();
+
+  res.status(200).json({ message: "Item removed from cart", cart });
+});
+
+export const clearCart = asyncHandler(async (req, res) => {
+  const cart = await Cart.findOneAndUpdate(
+    { clerkId: req.user.clerkId },
+    { $set: { items: [] } },
+    { new: true }
+  );
+
+  if (!cart) {
+    throw new AppError("Cart not found", 404);
+  }
+
+  res.status(200).json({ message: "Cart cleared", cart });
+});
+
+export const calculateShipping = asyncHandler(async (req, res) => {
+  const { coordinates } = req.body;
+
+  if (!coordinates?.latitude || !coordinates?.longitude) {
+    throw new AppError("Coordinates required", 400);
+  }
+
+  const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
+
+  if (!cart || cart.items.length === 0) {
+    return res.status(200).json({ total: 0, breakdown: [] });
+  }
+
+  const { calculateCartShipping } = await import("../services/shipping.service.js");
+
+  let shipping;
   try {
-    const { productId, quantity = 1 } = req.body;
+    shipping = calculateCartShipping(cart.items, coordinates);
+  } catch (calcError) {
+    throw new AppError(calcError.message, 400);
+  }
 
-    // validate product exists and has stock
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
+  res.status(200).json(shipping);
+});
 
-    if (product.stock < quantity) {
-      return res.status(400).json({ error: "Insufficient stock" });
-    }
+/**
+ * Validate cart items stock before checkout
+ * POST /api/cart/validate
+ */
+export const validateCartStock = asyncHandler(async (req, res) => {
+  const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
 
-    let cart = await Cart.findOne({ clerkId: req.user.clerkId });
+  if (!cart || cart.items.length === 0) {
+    return res.status(200).json({ valid: true, issues: [] });
+  }
 
-    if (!cart) {
-      const user = req.user;
+  const issues = [];
+  const validItems = [];
 
-      cart = await Cart.create({
-        user: user._id,
-        clerkId: user.clerkId,
-        items: [],
+  for (const item of cart.items) {
+    if (!item.product) {
+      issues.push({
+        productId: item.product,
+        type: "not_found",
+        message: "Produk tidak tersedia lagi",
       });
+      continue;
     }
 
-    // check if item already in the cart
-    const existingItem = cart.items.find((item) => item.product.toString() === productId);
-    if (existingItem) {
-      // increment quantity by 1
-      const newQuantity = existingItem.quantity + 1;
-      if (product.stock < newQuantity) {
-        return res.status(400).json({ error: "Insufficient stock" });
-      }
-      existingItem.quantity = newQuantity;
+    if (item.product.stock <= 0) {
+      issues.push({
+        productId: item.product._id,
+        name: item.product.name,
+        type: "out_of_stock",
+        message: `${item.product.name} sudah habis`,
+      });
+    } else if (item.product.stock < item.quantity) {
+      issues.push({
+        productId: item.product._id,
+        name: item.product.name,
+        type: "insufficient_stock",
+        requested: item.quantity,
+        available: item.product.stock,
+        message: `${item.product.name} hanya tersisa ${item.product.stock} unit`,
+      });
     } else {
-      // add new item
-      cart.items.push({ product: productId, quantity });
+      validItems.push(item);
     }
-
-    await cart.save();
-
-    res.status(200).json({ message: "Item added to cart", cart });
-  } catch (error) {
-    console.error("Error in addToCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
   }
-}
 
-export async function updateCartItem(req, res) {
-  try {
-    const { productId } = req.params;
-    const { quantity } = req.body;
-
-    if (quantity < 1) {
-      return res.status(400).json({ error: "Quantity must be at least 1" });
-    }
-
-    const cart = await Cart.findOne({ clerkId: req.user.clerkId });
-    if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
-    }
-
-    const itemIndex = cart.items.findIndex((item) => item.product.toString() === productId);
-    if (itemIndex === -1) {
-      return res.status(404).json({ error: "Item not found in cart" });
-    }
-
-    // check if product exists & validate stock
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ error: "Product not found" });
-    }
-
-    if (product.stock < quantity) {
-      return res.status(400).json({ error: "Insufficient stock" });
-    }
-
-    cart.items[itemIndex].quantity = quantity;
-    await cart.save();
-
-    res.status(200).json({ message: "Cart updated successfully", cart });
-  } catch (error) {
-    console.error("Error in updateCartItem controller:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-}
-
-export async function removeFromCart(req, res) {
-  try {
-    const { productId } = req.params;
-
-    const cart = await Cart.findOne({ clerkId: req.user.clerkId });
-    if (!cart) {
-      return res.status(404).json({ error: "Cart not found" });
-    }
-
-    cart.items = cart.items.filter((item) => item.product.toString() !== productId);
-    await cart.save();
-
-    res.status(200).json({ message: "Item removed from cart", cart });
-  } catch (error) {
-    console.error("Error in removeFromCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-}
-
-export const clearCart = async (req, res) => {
-  try {
-    // Use atomic update to avoid VersionError (race conditions)
-    const cart = await Cart.findOneAndUpdate(
-      { clerkId: req.user.clerkId },
-      { $set: { items: [] } },
-      { new: true } // Return the updated document
-    );
-
-    if (!cart) {
-      return res.status(404).json({ message: "Cart not found" });
-    }
-
-    res.status(200).json({ message: "Cart cleared", cart });
-  } catch (error) {
-    console.error("Error in clearCart controller:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-export async function calculateShipping(req, res) {
-  try {
-    const { coordinates } = req.body;
-
-    if (!coordinates?.latitude || !coordinates?.longitude) {
-      return res.status(400).json({ error: "Coordinates required" });
-    }
-
-    const cart = await Cart.findOne({ clerkId: req.user.clerkId }).populate("items.product");
-
-    if (!cart || cart.items.length === 0) {
-      return res.status(200).json({ total: 0, breakdown: [] });
-    }
-
-    // Reuse the existing service which is already used in payment controller
-    const { calculateCartShipping } = await import("../services/shipping.service.js");
-
-    let shipping;
-    try {
-      shipping = calculateCartShipping(cart.items, coordinates);
-    } catch (calcError) {
-      console.warn("Shipping calc failed (probably missing location data), defaulting to flat rate:", calcError.message);
-
-      return res.status(400).json({ error: calcError.message });
-    }
-
-    res.status(200).json(shipping);
-  } catch (error) {
-    console.error("Error in calculateShipping controller:", error);
-    res.status(500).json({ error: "Failed to calculate shipping" });
-  }
-}
+  res.status(200).json({
+    valid: issues.length === 0,
+    issues,
+    totalItems: cart.items.length,
+    validItems: validItems.length,
+  });
+});

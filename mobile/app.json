@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "GrowLiv",
+    "slug": "growliv",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "growliv",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mobile"
+      "bundleIdentifier": "com.growliv.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Untuk menghitung ongkos kirim berdasarkan lokasi Anda",
+        "NSPhotoLibraryUsageDescription": "Untuk mengunggah foto produk"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +25,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.mobile"
+      "package": "com.growliv.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -40,11 +48,28 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Untuk menghitung ongkos kirim berdasarkan lokasi Anda"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Untuk mengunggah foto produk"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

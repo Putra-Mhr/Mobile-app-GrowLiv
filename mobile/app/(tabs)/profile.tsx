@@ -1,12 +1,12 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View, RefreshControl } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useCallback, useState } from "react";
-import { useApi } from "@/lib/api";
 import useNotifications from "@/hooks/useNotifications";
+import { useProfile, useMyStore } from "@/hooks/useProfile";
 import { PageBackground } from "@/components/PageBackground";
 
 const MENU_ITEMS = [
@@ -30,50 +30,21 @@ const GARDENING_TIPS = [
 const ProfileScreen = () => {
   const { signOut } = useAuth();
   const { user } = useUser();
-  const api = useApi();
   const { unreadCount } = useNotifications();
+  const { profile, refetch: refetchProfile } = useProfile();
+  const { store, refetch: refetchStore } = useMyStore(profile?.role);
 
-  // Profile state from backend
-  const [profileName, setProfileName] = useState<string | null>(null);
-  const [hasStore, setHasStore] = useState<boolean>(false);
-  const [storeName, setStoreName] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch profile data from backend
-  const loadProfile = useCallback(async () => {
-    try {
-      const response = await api.get("/users/profile");
-      if (response.data?.profile?.name) {
-        setProfileName(response.data.profile.name);
-      }
-      // Check user role
-      if (response.data?.profile?.role === "seller") {
-        setHasStore(true);
-        // Fetch store name
-        try {
-          const storeResponse = await api.get("/stores/my-store");
-          if (storeResponse.data?.name) {
-            setStoreName(storeResponse.data.name);
-          }
-        } catch {
-          // Store not found, user might need to re-register
-          setHasStore(false);
-        }
-      } else {
-        setHasStore(false);
-        setStoreName(null);
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-      // Keep using Clerk name as fallback
-    }
-  }, [api]);
+  const hasStore = profile?.role === "seller" && !!store;
+  const storeName = store?.name ?? null;
 
-  // Reload profile when screen is focused (e.g., after editing)
-  useFocusEffect(
-    useCallback(() => {
-      loadProfile();
-    }, [loadProfile])
-  );
+  // Pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchProfile(), refetchStore()]);
+    setRefreshing(false);
+  }, [refetchProfile, refetchStore]);
 
   // Get daily tip based on day of year
   const dailyTip = (() => {
@@ -86,7 +57,7 @@ const ProfileScreen = () => {
   })();
 
   // Display name: prefer backend name, fallback to Clerk name
-  const displayName = profileName || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "User";
+  const displayName = profile?.name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "User";
 
   const handleMenuPress = (action: (typeof MENU_ITEMS)[number]["action"]) => {
     router.push(action);
@@ -126,6 +97,14 @@ const ProfileScreen = () => {
         className="flex-1 -mt-24"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#22C55E"]}
+            tintColor="#22C55E"
+          />
+        }
       >
         {/* PROFILE CARD */}
         <View className="px-5 pb-4">

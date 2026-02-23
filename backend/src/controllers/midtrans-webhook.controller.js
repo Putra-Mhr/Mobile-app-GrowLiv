@@ -1,257 +1,77 @@
-import mongoose from "mongoose";
 import crypto from "crypto";
 import { Order } from "../models/order.model.js";
-import { Product } from "../models/product.model.js";
-import { Cart } from "../models/cart.model.js";
-import { Treasury } from "../models/treasury.model.js";
-import { Payout } from "../models/payout.model.js";
+import { processSuccessfulPayment } from "../services/payment-processing.service.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { AppError } from "../utils/AppError.js";
 
 /**
  * Midtrans Notification/Webhook Handler
- * Called by Midtrans when payment status changes
+ * Called by Midtrans when payment status changes.
+ * Includes signature verification for security.
+ * Uses shared processSuccessfulPayment for auto-verification.
  */
-export async function handleMidtransNotification(req, res) {
-    try {
-        const notification = req.body;
+export const handleMidtransNotification = asyncHandler(async (req, res) => {
+    const notification = req.body;
 
-        console.log("📥 Midtrans Notification Received:", {
-            order_id: notification.order_id,
-            transaction_status: notification.transaction_status,
-            fraud_status: notification.fraud_status,
-        });
+    console.log("📥 Midtrans Notification Received:", {
+        order_id: notification.order_id,
+        transaction_status: notification.transaction_status,
+        fraud_status: notification.fraud_status,
+    });
 
-        // Verify signature
-        const serverKey = process.env.MIDTRANS_SERVER_KEY;
-        const signatureKey = notification.signature_key;
-        const orderId = notification.order_id;
-        const statusCode = notification.status_code;
-        const grossAmount = notification.gross_amount;
+    // ========== SIGNATURE VERIFICATION ==========
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const signatureKey = notification.signature_key;
+    const orderId = notification.order_id;
+    const statusCode = notification.status_code;
+    const grossAmount = notification.gross_amount;
 
-        const mySignature = crypto
-            .createHash("sha512")
-            .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
-            .digest("hex");
+    const mySignature = crypto
+        .createHash("sha512")
+        .update(`${orderId}${statusCode}${grossAmount}${serverKey}`)
+        .digest("hex");
 
-        if (signatureKey !== mySignature) {
-            console.error("❌ Invalid signature");
-            return res.status(403).json({ error: "Invalid signature" });
-        }
+    if (signatureKey !== mySignature) {
+        console.error("❌ Invalid signature - request rejected");
+        throw new AppError("Invalid signature", 403);
+    }
 
-        // Find ALL orders with this payment ID (could be split orders)
-        const orders = await Order.find({ "paymentResult.id": orderId });
+    // ========== FIND ORDERS ==========
+    const orders = await Order.find({ "paymentResult.id": orderId });
 
-        if (!orders || orders.length === 0) {
-            console.error("❌ Order(s) not found for:", orderId);
-            return res.status(404).json({ error: "Order not found" });
-        }
+    if (!orders || orders.length === 0) {
+        console.error("❌ Order(s) not found for:", orderId);
+        throw new AppError("Order not found", 404);
+    }
 
-        console.log(`✅ Found ${orders.length} order(s) for payment:`, orderId);
+    console.log(`✅ Found ${orders.length} order(s) for payment:`, orderId);
 
-        // Update orders based on transaction status
-        const transactionStatus = notification.transaction_status;
-        const fraudStatus = notification.fraud_status;
+    // ========== PROCESS BASED ON STATUS ==========
+    const transactionStatus = notification.transaction_status;
+    const fraudStatus = notification.fraud_status;
 
-        for (const order of orders) {
-            if (transactionStatus === "capture") {
-                if (fraudStatus === "accept") {
-                    await handleSuccessfulPayment(order, notification);
-                }
-            } else if (transactionStatus === "settlement") {
-                await handleSuccessfulPayment(order, notification);
-            } else if (
-                transactionStatus === "cancel" ||
-                transactionStatus === "deny" ||
-                transactionStatus === "expire"
-            ) {
-                if (order.status !== 'awaiting_payment') {
-                    order.status = "canceled";
-                }
-                order.paymentResult.status = transactionStatus;
-                await order.save();
-                console.log("❌ Payment failed/cancelled for order:", order._id);
-            } else if (transactionStatus === "pending") {
-                order.paymentResult.status = "pending";
-                await order.save();
-                console.log("⏳ Payment still pending for order:", order._id);
+    for (const order of orders) {
+        if (transactionStatus === "capture" && fraudStatus === "accept") {
+            await processSuccessfulPayment(order, { source: "webhook" });
+        } else if (transactionStatus === "settlement") {
+            await processSuccessfulPayment(order, { source: "webhook" });
+        } else if (
+            transactionStatus === "cancel" ||
+            transactionStatus === "deny" ||
+            transactionStatus === "expire"
+        ) {
+            if (order.status === "awaiting_payment") {
+                order.status = "payment_failed";
             }
-        }
-
-        res.status(200).json({ message: "Notification processed" });
-    } catch (error) {
-        console.error("Error handling Midtrans notification:", error);
-        res.status(500).json({ error: "Internal server error" });
-    }
-}
-
-/**
- * Handle successful payment
- * Tries to use MongoDB Transaction if available, otherwise runs without transaction
- */
-async function handleSuccessfulPayment(order, notification) {
-    // Skip if already paid (avoid duplicate processing)
-    if (order.isPaid) {
-        console.log("⏭️ Order already paid, skipping:", order._id);
-        return;
-    }
-
-    let session = null;
-    let useTransaction = true;
-
-    try {
-        // Try to start a session for transaction
-        session = await mongoose.startSession();
-        session.startTransaction();
-        console.log("💰 Processing successful payment for order:", order._id);
-        console.log("   🔒 Transaction started");
-    } catch (sessionError) {
-        // Transactions not supported (standalone MongoDB)
-        console.log("⚠️ Transactions not supported, running without transaction...");
-        console.log("💰 Processing successful payment for order:", order._id);
-        useTransaction = false;
-        session = null;
-    }
-
-    try {
-        // ========== 1. UPDATE ORDER STATUS ==========
-        order.status = "pending"; // pending shipment, payment is done
-        order.paymentResult.status = "settlement";
-        order.paymentResult.updateTime = new Date();
-        order.isPaid = true;
-        order.paidAt = new Date();
-
-        // Add tracking history
-        order.trackingHistory.push({
-            status: "pending",
-            title: "Pembayaran Berhasil",
-            description: "Pembayaran telah diverifikasi, pesanan akan segera diproses",
-            timestamp: new Date(),
-        });
-
-        if (useTransaction) {
-            await order.save({ session });
-        } else {
+            order.paymentResult.status = transactionStatus;
             await order.save();
-        }
-        console.log("✅ Order updated:", order._id);
-
-        // ========== 2. REDUCE PRODUCT STOCK ==========
-        for (const item of order.orderItems) {
-            const product = useTransaction
-                ? await Product.findById(item.product).session(session)
-                : await Product.findById(item.product);
-            if (product) {
-                product.stock -= item.quantity;
-                if (product.stock < 0) product.stock = 0;
-                if (useTransaction) {
-                    await product.save({ session });
-                } else {
-                    await product.save();
-                }
-                console.log(`📦 Reduced stock for ${product.name}: -${item.quantity}`);
-            }
-        }
-
-        // ========== 3. CREDIT PLATFORM TREASURY ==========
-        const sellerAmount = order.sellerEarnings || order.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const shippingCost = order.shippingCost || 0;
-        const adminFee = order.adminFee || 0;
-
-        console.log("📊 Payment Breakdown:", {
-            sellerAmount,
-            shippingCost,
-            adminFee,
-            total: sellerAmount + shippingCost + adminFee
-        });
-
-        // Get treasury and update
-        const treasury = useTransaction
-            ? await Treasury.findOne().session(session)
-            : await Treasury.findOne();
-        if (!treasury) {
-            throw new Error("Treasury not found - please initialize first");
-        }
-
-        treasury.adminFeeBalance += adminFee;
-        treasury.shippingBalance += shippingCost;
-        treasury.sellerPendingBalance += sellerAmount;
-        treasury.totalAdminFeeEarned += adminFee;
-        treasury.totalShippingCollected += shippingCost;
-        treasury.totalOrdersProcessed += 1;
-
-        if (useTransaction) {
-            await treasury.save({ session });
-        } else {
-            await treasury.save();
-        }
-
-        console.log(`💰 Treasury updated: Admin Fee +Rp ${adminFee.toLocaleString('id-ID')}, Shipping +Rp ${shippingCost.toLocaleString('id-ID')}, Seller Pending +Rp ${sellerAmount.toLocaleString('id-ID')}`);
-
-        // ========== 4. CREATE PAYOUT RECORD ==========
-        if (order.store) {
-            // Check if payout already exists for this order
-            const existingPayout = useTransaction
-                ? await Payout.findOne({ order: order._id, type: "order_payment" }).session(session)
-                : await Payout.findOne({ order: order._id, type: "order_payment" });
-
-            if (existingPayout) {
-                console.log(`⏭️ Payout already exists for order ${order._id}, skipping`);
-            } else {
-                const payoutData = {
-                    store: order.store,
-                    order: order._id,
-                    amount: sellerAmount,
-                    type: "order_payment",
-                    status: "pending",
-                    breakdown: {
-                        productTotal: sellerAmount,
-                        shippingCost: shippingCost,
-                        adminFee: adminFee,
-                    },
-                    notes: `Order #${order._id.toString().slice(-8).toUpperCase()}`,
-                };
-
-                if (useTransaction) {
-                    await Payout.create([payoutData], { session });
-                } else {
-                    await Payout.create(payoutData);
-                }
-                console.log(`📝 Payout record created for store ${order.store}: Rp ${sellerAmount.toLocaleString('id-ID')}`);
-            }
-        } else {
-            console.log("ℹ️ No store for this order (admin product) - no payout record created");
-        }
-
-        // ========== COMMIT TRANSACTION ==========
-        if (useTransaction && session) {
-            await session.commitTransaction();
-            console.log("✅ Transaction committed successfully for order:", order._id);
-        } else {
-            console.log("✅ Payment processed successfully for order:", order._id);
-        }
-
-        // ========== 5. CLEAR CART (non-critical, outside transaction) ==========
-        try {
-            await Cart.findOneAndUpdate(
-                { user: order.user },
-                { $set: { items: [] } }
-            );
-            console.log("🛒 Cart cleared for user:", order.user);
-        } catch (cartError) {
-            console.error("⚠️ Failed to clear cart (non-critical):", cartError.message);
-        }
-
-    } catch (error) {
-        // Rollback transaction on any error
-        if (useTransaction && session) {
-            await session.abortTransaction();
-            console.error("❌ Transaction aborted for order:", order._id);
-        }
-        console.error("❌ Error processing payment:", error.message);
-        throw error;
-    } finally {
-        if (session) {
-            session.endSession();
+            console.log("❌ Payment failed/cancelled for order:", order._id);
+        } else if (transactionStatus === "pending") {
+            order.paymentResult.status = "pending";
+            await order.save();
+            console.log("⏳ Payment still pending for order:", order._id);
         }
     }
-}
 
+    res.status(200).json({ message: "Notification processed" });
+});

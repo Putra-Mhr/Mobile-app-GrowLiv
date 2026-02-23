@@ -2,10 +2,11 @@ import { useAuth } from "@clerk/clerk-expo";
 import axios from "axios";
 import { useEffect, useRef } from "react";
 
-// localhost emulator
+// API URL from environment variable (set in .env)
+// Default fallback for development
 const API_URL = "http://192.168.18.29:3000/api";
 
-// prod url physical device
+// API URL for production
 // const API_URL = "https://mobile-app-growliv-zm3uu.sevalla.app/api";
 
 // Create axios instance ONCE outside the hook
@@ -36,7 +37,7 @@ export const useApi = () => {
             config.headers.Authorization = `Bearer ${token}`;
           }
         } catch (error) {
-
+          console.error("Failed to get token:", error);
         }
         return config;
       },

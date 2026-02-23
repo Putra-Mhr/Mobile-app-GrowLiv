@@ -3,6 +3,7 @@ import path from "path";
 import { clerkMiddleware } from "@clerk/express";
 import { serve } from "inngest/express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 
 import { functions, inngest } from "./config/inngest.js";
 
@@ -21,6 +22,7 @@ import notificationRoutes from "./routes/notification.route.js";
 import storeRoutes from "./routes/store.route.js";
 import sellerRoutes from "./routes/seller.route.js";
 import { errorHandler } from "./middleware/error.middleware.js";
+import { requestLogger } from "./middleware/logger.middleware.js";
 
 const app = express();
 
@@ -28,7 +30,44 @@ const __dirname = path.resolve();
 
 app.use(express.json());
 app.use(clerkMiddleware()); // adds auth object under the req => req.auth
-app.use(cors({ origin: ENV.CLIENT_URL, credentials: true })); // credentials: true allows the browser to send the cookies to the server with the request
+app.use(requestLogger);
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    // Allow admin panel
+    if (origin === ENV.CLIENT_URL) return callback(null, true);
+    // Allow any localhost for development only
+    if (ENV.NODE_ENV !== "production" &&
+      (origin.includes("localhost") || origin.includes("127.0.0.1"))) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later" },
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // stricter for payment endpoints
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many payment requests, please try again later" },
+});
+
+app.use("/api", generalLimiter);
+
+// Health check (before routes — always accessible)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ message: "Success", timestamp: new Date().toISOString() });
+});
 
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
@@ -38,16 +77,13 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/payment", paymentRoutes);
+app.use("/api/payment", paymentLimiter, paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/seller", sellerRoutes);
 
+// Global error handler (must be AFTER routes)
 app.use(errorHandler);
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ message: "Success" });
-});
 
 // make our app ready for deployment
 if (ENV.NODE_ENV === "production") {
@@ -75,4 +111,3 @@ const startServer = async () => {
 };
 
 startServer();
-

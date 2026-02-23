@@ -70,7 +70,7 @@ const DefaultAddressScreen = () => {
             router.replace("/(tabs)");
         } catch (error: any) {
             console.error("Error completing onboarding:", error);
-            showToast("error", "Gagal Menyimpan", error?.response?.data?.error || "Silakan coba lagi");
+            showToast("error", "Gagal Menyimpan", error?.response?.data?.message || "Silakan coba lagi");
         } finally {
             setLoading(false);
         }
